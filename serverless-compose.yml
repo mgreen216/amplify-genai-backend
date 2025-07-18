@@ -3,6 +3,9 @@ services:
   amplify-assistants:
     path: ./amplify-assistants
 
+  llm-router:
+    path: ./llm-router
+
   amplify-lambda:
     path: ./amplify-lambda
     dependsOn:

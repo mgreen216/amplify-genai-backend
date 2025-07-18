@@ -1,0 +1,41 @@
+# amplify-lambda
+DEP_NAME: "dev"
+DEP_REGION: "us-east-1"
+HOSTED_ZONE_ID: "Z03004413QUNALYU5AAL1"
+IDP_PREFIX: "AmplifyGenAI"
+LLM_ENDPOINTS_SECRETS_NAME_ARN: "arn:aws:secretsmanager:us-east-1:135808927724:secret:dev-openai-endpoints"
+LLM_ENDPOINTS_SECRETS_NAME: "dev-openai-endpoints"
+OAUTH_AUDIENCE: "https://dev-hfu-amplify.org"
+OAUTH_ISSUER_BASE_URL: "https://cognito-idp.us-east-1.amazonaws.com/PLACEHOLDER"
+CUSTOM_API_DOMAIN: "api.dev-hfu-amplify.org"
+COGNITO_USER_POOL_ID: "PLACEHOLDER"
+COGNITO_CLIENT_ID: "PLACEHOLDER"
+OPENAI_API_KEY: "dev-openai-api-key"
+ORGANIZATION_EMAIL_DOMAIN: "holyfamily.edu"
+PANDOC_LAMBDA_LAYER_ARN: "arn:aws:lambda:us-east-1:135808927724:layer:pandoc_layer:3"
+PRIVATE_SUBNET_ONE: "subnet-0a8d856d2322d57c7"
+PRIVATE_SUBNET_TWO: "subnet-0406833402da05a52"
+RDS_HOSTED_ZONE_ID: "Z2R2ITUGPM61AM"
+SECRETS_ARN_NAME: "arn:aws:secretsmanager:us-east-1:135808927724:secret:dev-amplify-app-secrets"
+VPC_CIDR: "10.0.0.0/16"
+VPC_ID: "vpc-0361d04ac1bec98c7"
+KEYWORD_MODEL_NAME: "gpt-35-turbo"
+CHANGE_SET_BOOLEAN: false
+CHAT_ENDPOINT: ""
+AGENT_ENDPOINT: ""
+
+# Embeddings Configuration
+API_VERSION: "2024-02-15-preview"
+ASSISTANTS_OPENAI_PROVIDER: "azure"
+EMBEDDING_MODEL_NAME: "text-embedding-ada-002"
+EMBEDDING_PROVIDER: "azure"
+OPENAI_PROVIDER: "azure"
+QA_MODEL_NAME: "gpt-35-turbo"
+RAG_ASSISTANT_MODEL_ID: "gpt-35-turbo"
+
+# Amazon Aurora RDS scaling
+MIN_ACU: "0.5"
+MAX_ACU: "16"
+
+# Admin access
+ADMINS: "mgreen2@holyfamily.edu"

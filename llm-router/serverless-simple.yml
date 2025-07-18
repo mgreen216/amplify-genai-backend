@@ -1,0 +1,89 @@
+service: llm-router
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  stackName: ${self:service}-${self:provider.stage}
+  versionFunctions: false
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - arn:aws:secretsmanager:${self:provider.region}:*:secret:${self:provider.stage}-llm-api-keys-*
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+            - bedrock:InvokeModelWithResponseStream
+          Resource:
+            - arn:aws:bedrock:${self:provider.region}::foundation-model/*
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+          Resource:
+            - "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.stage}-usage"
+            - "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.stage}-usage/index/*"
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    SECRET_NAME: ${self:provider.stage}-llm-api-keys
+
+functions:
+  proxy:
+    handler: service.core.handler
+    memorySize: 512
+    timeout: 300
+    events:
+      - http:
+          path: proxy/llm
+          method: post
+          cors: true
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+    layer: true
+    
+resources:
+  Resources:
+    UsageTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.stage}-usage
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+    
+    LLMApiKeysSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: ${self:provider.stage}-llm-api-keys
+        Description: API keys for external LLM providers (OpenAI, Gemini)
+        SecretString: |
+          {
+            "openai_api_key": "YOUR_OPENAI_API_KEY",
+            "gemini_api_key": "YOUR_GEMINI_API_KEY"
+          }
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: llm-router
