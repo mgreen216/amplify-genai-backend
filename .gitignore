@@ -52,10 +52,11 @@ node_modules
 response.json
 
 # Timestamped serverless.yml snapshots taken before manual edits.
-# Kept on disk deliberately: several amplify-lambda/*.backup* files are the
-# only surviving record of the CloudFormation logical IDs of the currently
-# deployed stack (e.g. AccountingTable), which appear in neither the live
-# file nor git history. Do not delete until that rename is reconciled.
+# Historical only. Verified 2026-07-10 against amplify-prod-lambda-prod that
+# the logical-ID rename these snapshots predate (AccountingTable ->
+# AccountingChargesDynamoDbTable, S3AccessLogsBucket -> AccessLogsBucket) is
+# ALREADY applied in prod, so they record nothing the live stack does not.
+# Safe to delete; ignored so they never reach a commit.
 *.backup
 *.backup2
 *.backup-*
