@@ -20,7 +20,8 @@ custom:
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -68,7 +69,15 @@ functions:
       - http:
           path: ops/get
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
   
   get_all_ops:
     handler: service/core.get_all_ops
@@ -76,7 +85,15 @@ functions:
       - http:
           path: ops/get_all
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   register_ops:
     handler: service/core.write_ops
@@ -84,7 +101,15 @@ functions:
       - http:
           path: ops/register
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   delete_op:
     handler: service/core.delete_op
@@ -92,7 +117,41 @@ functions:
       - http:
           path: ops/delete
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+
+  # Semantic Scholar paper search — invoked by the chat agent via the ```auto
+  # ops protocol. Registered as a system op (user="system") so it's globally
+  # available to all HFU users without per-user registration.
+  semantic_scholar_search:
+    handler: service/semantic_scholar.search
+    # Free-tier requests can occasionally take 6-8s on slow Semantic Scholar
+    # responses. Default Lambda timeout is 6s; bump to 20 to leave headroom.
+    timeout: 20
+    environment:
+      # Empty by default — if HFU ever provisions a paid Semantic Scholar key,
+      # add SEMANTIC_SCHOLAR_API_KEY to prod-var.yml and reference it here.
+      SEMANTIC_SCHOLAR_API_KEY: ${self:custom.stageVars.SEMANTIC_SCHOLAR_API_KEY, ''}
+    events:
+      - http:
+          path: op/semantic_scholar_search
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 resources:
   Resources:

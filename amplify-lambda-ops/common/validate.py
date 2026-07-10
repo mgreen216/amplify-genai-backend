@@ -116,8 +116,23 @@ delete_op_schema = {
     "additionalProperties": False
 }
 
+# Semantic Scholar paper search. `query` is free-text; `limit` is capped to 10
+# here AND in the handler so a malformed request that bypasses validation
+# can't blow up the response size or exhaust Semantic Scholar's rate budget.
+# additionalProperties:False keeps the surface area tight — if we add a
+# `year_from` filter later, it gets added intentionally.
+semantic_scholar_search_schema = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "minLength": 1, "maxLength": 500},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+    },
+    "required": ["query"],
+    "additionalProperties": False,
+}
+
 """
-Every service must define the permissions for each operation here. 
+Every service must define the permissions for each operation here.
 The permission is related to a request path and to a specific operation.
 """
 validators = {
@@ -136,6 +151,9 @@ validators = {
     },
     "/ops/delete" : {
         "delete": delete_op_schema
+    },
+    "/op/semantic_scholar_search": {
+        "search": semantic_scholar_search_schema
     }
 }
 
@@ -151,6 +169,9 @@ api_validators = {
         {
             "get": {}
         },
+    "/op/semantic_scholar_search": {
+        "search": semantic_scholar_search_schema
+    },
 }
 
 
