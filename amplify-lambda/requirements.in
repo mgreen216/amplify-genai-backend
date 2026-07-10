@@ -3,7 +3,7 @@ botocore
 chardet
 cryptography
 python-jose
-jsonschema
+jsonschema==4.17.3
 Pillow
 pydantic
 python-dotenv

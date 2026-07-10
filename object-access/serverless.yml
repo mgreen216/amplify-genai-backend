@@ -13,7 +13,7 @@ plugins:
   - serverless-prune-plugin
   - serverless-deployment-bucket
   - serverless-iam-roles-per-function
-  - serverless-cloudformation-changesets
+  # - serverless-cloudformation-changesets
 
 custom:
   pythonRequirements:
@@ -27,7 +27,8 @@ custom:
     custom:
       config: ${file(../var/${self:provider.stage}-var.yml)} 
 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -49,7 +50,7 @@ provider:
   versionFunctions: false
   logRetentionInDays: 365
   deploymentBucket:
-    name: ${self:service}-${sls:stage}-deployment-bucket
+    name: amplify-${self:custom.stageVars.DEP_NAME}-obj-acc-${sls:stage}-deploy-kj8d9f2h3k
     serverSideEncryption: AES256
   apiGateway:
     restApiId:
@@ -116,7 +117,15 @@ functions:
       - http:
           path: /utilities/update_object_permissions
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   can_access_objects:
     runtime: python3.11
@@ -128,7 +137,15 @@ functions:
       - http:
           path: /utilities/can_access_objects
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   simulate_access:
     runtime: python3.11
@@ -140,7 +157,15 @@ functions:
       - http:
           path: /utilities/simulate_access_to_objects
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   sync_cognito_users:
     runtime: python3.11
@@ -162,7 +187,15 @@ functions:
       - http:
           path: /groups/create
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   create_amplify_asts:
     handler: groups.create_amplify_assistants
@@ -173,7 +206,15 @@ functions:
       - http:
           path: /groups/assistants/amplify
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   replace_group_key:
@@ -185,7 +226,15 @@ functions:
       - http:
           path: /groups/replace_key
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   update_members:
     handler: groups.update_members
@@ -196,7 +245,15 @@ functions:
       - http:
           path: /groups/update/members
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   update_group_types:
     handler: groups.update_group_types
@@ -207,7 +264,15 @@ functions:
       - http:
           path: /groups/update/types
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       
   update_group_amp_groups:
     handler: groups.update_amplify_groups
@@ -218,7 +283,15 @@ functions:
       - http:
           path: /groups/update/amplify_groups
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   update_group_system_users:
     handler: groups.update_system_users
@@ -229,7 +302,15 @@ functions:
       - http:
           path: /groups/update/system_users
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   update_member_permission:
     handler: groups.update_members_permission
@@ -240,7 +321,15 @@ functions:
       - http:
           path: /groups/update/members/permissions
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   list_groups:
     handler: groups.list_groups
@@ -251,7 +340,15 @@ functions:
       - http:
           path: /groups/list
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   list_all_groups:
     handler: groups.list_all_groups_for_admins
@@ -262,7 +359,15 @@ functions:
       - http:
           path: /groups/list_all
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   
   update_groups_by_admins:
@@ -274,7 +379,15 @@ functions:
       - http:
           path: /groups/update
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   update_group_assistants:
@@ -286,7 +399,15 @@ functions:
       - http:
           path: /groups/update/assistants
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   delete_group:
     handler: groups.delete_group
@@ -297,7 +418,15 @@ functions:
       - http:
           path: /groups/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
     
   add_group_assistant_path:
     handler: groups.add_path_to_assistant
@@ -308,7 +437,15 @@ functions:
       - http:
           path: /groups/assistant/add_path
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   is_member_of_Ast_group:
     handler: groups.verify_is_member_ast_group
@@ -319,7 +456,15 @@ functions:
       - http:
           path: /groups/verify_ast_group_member
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 resources:
   Resources:

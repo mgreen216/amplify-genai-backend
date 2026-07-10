@@ -1,45 +1,97 @@
 
-#Copyright (c) 2024 Vanderbilt University  
+#Copyright (c) 2024 Vanderbilt University
 #Authors: Jules White, Allen Karns, Karely Rodriguez, Max Moundas
 
+import os
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+ENFORCE_PERMISSIONS = os.environ.get('ENFORCE_PERMISSIONS', 'false').lower() == 'true'
+
+
+def _check_ownership(user, data, operation):
+    """Core ownership check: verify the authenticated user matches the resource owner.
+
+    Returns True if the user is authorized, False otherwise.
+    When ENFORCE_PERMISSIONS is False, logs violations but returns True.
+    """
+    # Extract owner from request data — check common patterns
+    inner_data = data.get('data', {}) if isinstance(data.get('data'), dict) else {}
+    owner = (
+        inner_data.get('user') or
+        inner_data.get('owner') or
+        data.get('user') or
+        data.get('owner')
+    )
+
+    # If no owner field is present in the request, allow the operation.
+    # The handler itself scopes data access by current_user (e.g., S3 key prefix).
+    if not owner:
+        return True
+
+    if user != owner:
+        logger.warning(
+            "PERMISSION_VIOLATION: user=%s attempted %s on resource owned by %s | enforce=%s",
+            user, operation, owner, ENFORCE_PERMISSIONS
+        )
+        if ENFORCE_PERMISSIONS:
+            return False
+        # Log-only mode: allow through but record the violation
+        return True
+
+    return True
 
 
 def can_share(user, data):
-  return True
+    return _check_ownership(user, data, "share")
 
 def can_save(user, data):
-  return True
+    return _check_ownership(user, data, "save")
 
 def can_delete_item(user, data):
-  return True
+    return _check_ownership(user, data, "delete_item")
 
 def can_upload(user, data):
-  return True
+    return _check_ownership(user, data, "upload")
 
 def can_create_assistant(user, data):
-  return True
-def can_create_assistant_thread(user, data):
-  return True
+    return _check_ownership(user, data, "create_assistant")
 
+def can_create_assistant_thread(user, data):
+    return _check_ownership(user, data, "create_assistant_thread")
 
 def can_read(user, data):
-  return True
+    return _check_ownership(user, data, "read")
 
 def can_chat(user, data):
-  return True
-
-def get_permission_checker(user, type, op, data):
-  print("Checking permissions for user: {} and type: {} and op: {}".format(user, type, op))
-  return permissions_by_state_type.get(type, {}).get(op, lambda user, data: False)
-
-def get_user(event, data):
-  return data['user']
-
-def get_data_owner(event, data):
-  return data['user']
+    # Chat access: verify user has chat in their allowed_access if present
+    allowed = data.get('allowed_access', [])
+    if allowed and 'chat' not in allowed and 'full_access' not in allowed:
+        logger.warning(
+            "PERMISSION_VIOLATION: user=%s attempted chat without chat access | enforce=%s",
+            user, ENFORCE_PERMISSIONS
+        )
+        if ENFORCE_PERMISSIONS:
+            return False
+        return True
+    return _check_ownership(user, data, "chat")
 
 def can_delete_file(user, data):
-  return True
+    return _check_ownership(user, data, "delete_file")
+
+
+def get_permission_checker(user, type, op, data):
+    logger.info("Checking permissions for user: %s and type: %s and op: %s", user, type, op)
+    return permissions_by_state_type.get(type, {}).get(op, lambda user, data: False)
+
+def get_user(event, data):
+    return data['user']
+
+def get_data_owner(event, data):
+    return data['user']
+
 
 permissions_by_state_type = {
   "/state/share": {

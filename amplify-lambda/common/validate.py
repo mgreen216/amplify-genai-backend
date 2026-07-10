@@ -5,6 +5,7 @@ from jsonschema.exceptions import ValidationError
 from common.encoders import CombinedEncoder
 
 import os
+import time
 import requests
 from jose import jwt
 
@@ -902,8 +903,16 @@ def parse_and_validate(current_user, event, op, api_accessed, validate_body=True
 
     if not permission_checker(current_user, data):
         print("User does not have permission to perform the operation.")
-        # Return a 403 Forbidden if the user does not have permission to append data to this item
+        # Audit log denied operations
+        from common.audit import log_audit_event, should_audit
+        if should_audit(op):
+            log_audit_event(current_user, op, name, "deny")
         raise Unauthorized("User does not have permission to perform the operation.")
+
+    # Audit log sensitive allowed operations
+    from common.audit import log_audit_event, should_audit
+    if should_audit(op):
+        log_audit_event(current_user, op, name, "allow")
 
     return [name, data]
 
@@ -955,6 +964,23 @@ def validated(op, validate_body=True):
     return decorator
 
 
+# Module-level JWKS cache — persists across warm Lambda invocations
+_validate_jwks_cache = None
+_validate_jwks_cache_time = 0
+_VALIDATE_JWKS_CACHE_TTL = 3600  # 1 hour
+
+
+def _get_cached_jwks(jwks_url):
+    """Fetch JWKS with caching. Reuses cached keys for up to 1 hour."""
+    global _validate_jwks_cache, _validate_jwks_cache_time
+    now = time.time()
+    if _validate_jwks_cache and (now - _validate_jwks_cache_time) < _VALIDATE_JWKS_CACHE_TTL:
+        return _validate_jwks_cache
+    _validate_jwks_cache = requests.get(jwks_url, timeout=5).json()
+    _validate_jwks_cache_time = now
+    return _validate_jwks_cache
+
+
 def get_claims(event, context, token):
     # https://cognito-idp.<Region>.amazonaws.com/<userPoolId>/.well-known/jwks.json
 
@@ -962,7 +988,7 @@ def get_claims(event, context, token):
     oauth_audience = os.getenv('OAUTH_AUDIENCE')
 
     jwks_url = f'{oauth_issuer_base_url}/.well-known/jwks.json'
-    jwks = requests.get(jwks_url).json()
+    jwks = _get_cached_jwks(jwks_url)
 
     header = jwt.get_unverified_header(token)
     rsa_key = {}

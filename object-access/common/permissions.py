@@ -1,32 +1,66 @@
 
-#Copyright (c) 2024 Vanderbilt University  
+#Copyright (c) 2024 Vanderbilt University
 #Authors: Jules White, Allen Karns, Karely Rodriguez, Max Moundas
 
+import os
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-def can_update_permissions(user, data):
+ENFORCE_PERMISSIONS = os.environ.get('ENFORCE_PERMISSIONS', 'false').lower() == 'true'
+
+
+def _check_ownership(user, data, operation):
+    """Core ownership check for object-access operations.
+
+    Verifies the authenticated user has authority over the resource.
+    When ENFORCE_PERMISSIONS is False, logs violations but returns True.
+    """
+    inner_data = data.get('data', {}) if isinstance(data.get('data'), dict) else {}
+    owner = (
+        inner_data.get('user') or
+        inner_data.get('owner') or
+        inner_data.get('createdBy') or
+        data.get('user') or
+        data.get('owner')
+    )
+
+    if not owner:
+        return True
+
+    if user != owner:
+        logger.warning(
+            "PERMISSION_VIOLATION: user=%s attempted %s on resource owned by %s | enforce=%s",
+            user, operation, owner, ENFORCE_PERMISSIONS
+        )
+        if ENFORCE_PERMISSIONS:
+            return False
+        return True
+
     return True
 
+
+def can_update_permissions(user, data):
+    return _check_ownership(user, data, "update_permissions")
 
 def can_get_permissions(user, data):
-    return True
-
+    return _check_ownership(user, data, "get_permissions")
 
 def can_create(user, data):
-    return True
+    return _check_ownership(user, data, "create")
 
 def can_update(user, data):
-    return True
+    return _check_ownership(user, data, "update")
 
 def can_delete(user, data):
-    return True
+    return _check_ownership(user, data, "delete")
 
 def can_add_path(user, data):
-    return True
+    return _check_ownership(user, data, "add_path")
+
+def can_read(user, data):
+    return _check_ownership(user, data, "read")
 
 
 def get_permission_checker(user, type, op, data):
@@ -44,12 +78,9 @@ def get_user(event, data):
 def get_data_owner(event, data):
     return data['user']
 
-def can_read(user, data):
-  return True
-
 
 permissions_by_state_type = {
-    
+
     "/utilities/update_object_permissions": {
         "update_object_permissions": can_update_permissions
     },
@@ -119,4 +150,3 @@ permissions_by_state_type = {
         "verify_member": can_read
     }
 }
-

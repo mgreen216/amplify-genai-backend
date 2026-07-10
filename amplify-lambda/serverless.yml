@@ -11,8 +11,8 @@ plugins:
   - serverless-offline
   - serverless-python-requirements
   - serverless-prune-plugin
-  - serverless-domain-manager
-  - serverless-cloudformation-changesets  
+  # - serverless-domain-manager
+  - serverless-cloudformation-changesets
 
 layers:
   markitdown:
@@ -24,11 +24,12 @@ layers:
       
 custom:
   pythonRequirements:
-    dockerizePip: true
+    dockerizePip: false
     layer: true
+    pythonBin: python3.11
     # uncomment in case of issues with pythonRequirement layers not uploading to aws 
-    # useStaticCache: false  # Uses a static path for the cache
-    # useDownloadCache: false 
+    useStaticCache: false  # Uses a static path for the cache
+    useDownloadCache: false 
 
   prune:
     automatic: true
@@ -38,21 +39,22 @@ custom:
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
     - prod
 
-  customDomain:
-    domainName: ${self:custom.stageVars.CUSTOM_API_DOMAIN}
+  # customDomain:
+  #   domainName: ${self:custom.stageVars.CUSTOM_API_DOMAIN}
     #certificateArn: ${self:custom.stageVars.SSL_CERT_ARN}
-    certificateName:
-    basePath: # optional, set to empty for the root path
-    stage: ${self:provider.stage}
-    createRoute53Record: true # optional, default is false        
-    autoDomain: true
-    autoDomainWaitFor: 60
+   #  certificateName:
+   #  basePath: # optional, set to empty for the root path
+   #  stage: ${self:provider.stage}
+   # createRoute53Record: true # optional, default is false
+   # autoDomain: true
+   # autoDomainWaitFor: 60
     
 provider:
   name: aws
@@ -73,22 +75,22 @@ provider:
     CHAT_USAGE_DYNAMO_TABLE: ${self:service}-${sls:stage}-chat-usage
     CHAT_USAGE_ARCHIVE_DYNAMO_TABLE: ${self:service}-${sls:stage}-chat-usage-archive
     COST_CALCULATIONS_DYNAMO_TABLE: ${self:service}-${sls:stage}-cost-calculations
-    S3_ACCESS_LOGS_BUCKET_NAME: ${self:service}-${sls:stage}-access-logs
+    S3_ACCESS_LOGS_BUCKET_NAME: amp-${sls:stage}-access-logs-${sls:instanceId}
     LAMBDA_IAM_POLICY_NAME: ${self:service}-${sls:stage}-lambda-policy
-    S3_BUCKET_NAME: ${self:service}-${sls:stage}-share  
-    S3_CONVERSION_INPUT_BUCKET_NAME: ${self:service}-${sls:stage}-document-conversion-input
-    S3_CONVERSION_OUTPUT_BUCKET_NAME: ${self:service}-${sls:stage}-document-conversion-output
-    S3_ASSISTANT_UPLOADS_BUCKET_NAME: ${self:service}-${sls:stage}-assistant-uploads
-    S3_IMAGE_INPUT_BUCKET_NAME: ${self:service}-${sls:stage}-image-input
-    S3_RAG_INPUT_BUCKET_NAME: ${self:service}-${sls:stage}-rag-input
-    S3_RAG_CHUNKS_BUCKET_NAME: ${self:service}-${sls:stage}-rag-chunks
-    S3_FILE_TEXT_BUCKET_NAME: ${self:service}-${sls:stage}-file-text
+    S3_BUCKET_NAME: amp-${sls:stage}-share-${sls:instanceId}  
+    S3_CONVERSION_INPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-input-${sls:instanceId}
+    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${sls:instanceId}
+    S3_ASSISTANT_UPLOADS_BUCKET_NAME: amp-${sls:stage}-assistant-uploads-${sls:instanceId}
+    S3_IMAGE_INPUT_BUCKET_NAME: amp-${sls:stage}-image-input-${sls:instanceId}
+    S3_RAG_INPUT_BUCKET_NAME: amp-${sls:stage}-rag-input-${sls:instanceId}
+    S3_RAG_CHUNKS_BUCKET_NAME: amp-${sls:stage}-rag-chunks-${sls:instanceId}
+    S3_FILE_TEXT_BUCKET_NAME: amp-${sls:stage}-file-text-${sls:instanceId}
     SQS_RAG_DOCUMENT_INDEX_QUEUE: ${self:service}-${sls:stage}-rag-document-index-queue
     SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE: ${self:service}-${sls:stage}-rag-document-chunk-queue
     EMBEDDING_PROGRESS_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-embedding-${sls:stage}-embedding-progress
     OBJECT_ACCESS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-object-access
-    S3_CONVERSATIONS_BUCKET_NAME:  ${self:service}-${sls:stage}-user-conversations
-    S3_ZIP_FILE_BUCKET_NAME: ${self:service}-${sls:stage}-zip-files
+    S3_CONVERSATIONS_BUCKET_NAME:  amp-${sls:stage}-user-conversations-${sls:instanceId}
+    S3_ZIP_FILE_BUCKET_NAME: amp-${sls:stage}-zip-files-${sls:instanceId}
     API_KEYS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-api-keys
     CONVERSATION_METADATA_TABLE: ${self:service}-${sls:stage}-conversation-metadata
     API_BASE_URL: https://${self:custom.stageVars.CUSTOM_API_DOMAIN}/
@@ -97,12 +99,17 @@ provider:
     IDP_PREFIX: ${self:custom.stageVars.IDP_PREFIX}
     OAUTH_AUDIENCE: ${self:custom.stageVars.OAUTH_AUDIENCE}
     OAUTH_ISSUER_BASE_URL: ${self:custom.stageVars.OAUTH_ISSUER_BASE_URL}
-    AMPLIFY_ADMIN_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-admin-${sls:stage}-admin-configs
-    #AWS_REGION optional for /chat/service.py 
-    APP_ARN_NAME: ${sls:stage}-amplify-app-vars
-    DEP_REGION: ${self:custom.stageVars.DEP_REGION}
+    
+    OBJECT_S3_PERMISSION_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-object-s3-permissions
+    COGNITO_GROUP_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-user-groups
+    AMPLIFY_DATA_BUCKET: amp-${sls:stage}-data-${sls:instanceId}
 
-
+    CHAT_BILLING_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-chat-billing-${sls:stage}-chat-billing
+    MODEL_RATE_TABLE_NAME: amplify-${self:custom.stageVars.DEP_NAME}-chat-billing-${sls:stage}-model-rate-table
+    
+    STATE_MACHINE_ARN_CONVERSATION: arn:aws:states:${aws:region}:${aws:accountId}:stateMachine:amplify-${self:custom.stageVars.DEP_NAME}-lambda-ops-${sls:stage}-conversation
+  tracing:
+    lambda: true  
   iam:
     role:
       managedPolicies:
@@ -110,6 +117,16 @@ provider:
         - arn:aws:iam::${aws:accountId}:policy/${self:provider.environment.LAMBDA_IAM_POLICY_NAME}
 
 functions:
+
+  # JWT Authorizer function
+  jwtAuthorizer:
+    handler: auth/jwt_authorizer.lambda_handler
+    environment:
+      COGNITO_ISSUER: ${self:custom.stageVars.OAUTH_ISSUER_BASE_URL}
+      ACCOUNTS_DYNAMO_TABLE: ${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}
+      IDP_PREFIX: ${self:custom.stageVars.IDP_PREFIX}
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
 
   chat_endpoint:
     handler: chat/service.chat_endpoint
@@ -120,7 +137,18 @@ functions:
       - http:
           path: chat
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
     
   register_conversation:
     handler: state/conversation.register_conversation
@@ -130,17 +158,40 @@ functions:
       - http:
           path: state/conversation/register
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   upload_conversation:
     handler: state/conversation.upload_conversation
+    timeout: 30
     layers:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
           path: state/conversation/upload
-          method: put
-          cors: true
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   delete_conversation:
     handler: state/conversation.delete_conversation
@@ -150,7 +201,18 @@ functions:
       - http:
           path: state/conversation/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   delete_multiple_conversations:
     handler: state/conversation.delete_multiple_conversations
@@ -160,7 +222,18 @@ functions:
       - http:
           path: state/conversation/delete_multiple
           method: POST
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   get_conversation:
     handler: state/conversation.get_conversation
@@ -170,7 +243,18 @@ functions:
       - http:
           path: state/conversation/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   get_multiple_conversations:
     handler: state/conversation.get_multiple_conversations
@@ -181,7 +265,18 @@ functions:
       - http:
           path: state/conversation/get/multiple
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   get_all_conversation:
     handler: state/conversation.get_all_conversations
@@ -192,7 +287,18 @@ functions:
       - http:
           path: state/conversation/get/all
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   get_empty_conversation:
     handler: state/conversation.get_empty_conversations
@@ -203,7 +309,18 @@ functions:
       - http:
           path: state/conversation/get/empty
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
 
   upload_file:
@@ -214,7 +331,18 @@ functions:
       - http:
           path: files/upload
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
     environment:
         FILE_UPLOAD_ENCRYPTION_PARAMETER: /${self:service}/${sls:stage}/s3/metadata/encryption #must start with /
     timeout: 9    
@@ -227,7 +355,18 @@ functions:
       - http:
           path: files/download
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   delete_file:
     handler: files/file.delete_file
@@ -238,7 +377,18 @@ functions:
       - http:
           path: files/delete
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   list_tags_user:
     handler: files/file.list_tags_for_user
@@ -248,7 +398,18 @@ functions:
       - http:
           path: files/tags/list
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   create_tags_user:
     handler: files/file.create_tags
@@ -258,7 +419,18 @@ functions:
       - http:
           path: files/tags/create
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   delete_tag_user:
     handler: files/file.delete_tag_from_user
@@ -268,7 +440,18 @@ functions:
       - http:
           path: files/tags/delete
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   set_tags_user_files:
     handler: files/file.update_item_tags
@@ -278,7 +461,18 @@ functions:
       - http:
           path: files/set_tags
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   query_user_files:
     handler: files/file.query_user_files
@@ -289,7 +483,18 @@ functions:
       - http:
           path: files/query
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   set_datasource_metadata:
     handler: files/file.set_datasource_metadata_entry
@@ -300,218 +505,289 @@ functions:
       - http:
           path: datasource/metadata/set
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
-  create:
-    handler: state/create.create
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state
-          method: post
-          cors: true
-
-  user_share_with_users:
-    handler: state/share.share_with_users
+  reprocess_document_for_rag:
+    handler: files/file.reprocess_rag_ingest
     layers:
       - Ref: PythonRequirementsLambdaLayer
     timeout: 30
     events:
       - http:
+          path: files/reprocess/rag
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  accounts_save:
+    handler: state/accounts.save_accounts
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 30
+    events:
+      - http:
+          path: state/accounts/save
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  accounts_get:
+    handler: state/accounts.get_accounts
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 30
+    events:
+      - http:
+          path: state/accounts/get
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  accounts_charge:
+    handler: state/accounts.add_charge
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 30
+    events:
+      - http:
+          path: state/accounts/charge
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  settings_save:
+    handler: state/settings.save_settings
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 30
+    events:
+      - http:
+          path: state/settings/save
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  settings_get:
+    handler: state/settings.get_settings
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 30
+    events:
+      - http:
+          path: state/settings/get
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  user_share_with_users:
+    handler: state/share.share
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 9
+    events:
+      - http:
           path: state/share
           method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+
+  user_get_shares:
+    handler: state/share.get_share
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    timeout: 9
+    events:
+      - http:
+          path: state/share
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
   user_share_load:
-    handler: state/share.load_data_from_s3
+    handler: state/share.load_share
     layers:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
           path: state/share/load
           method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
-  user_get_shares:
-    handler: state/share.get_share_data_for_user
+  get_conversation_metadata:
+    handler: state/conversation.get_conversation_metadatas
+    timeout: 30
     layers:
       - Ref: PythonRequirementsLambdaLayer
-    timeout: 30
     events:
       - http:
-          path: state/share
+          path: state/conversation/get/metadata
           method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
 
-  chat_convert:
-    handler: converters/docconverter.submit_conversion_job
+  get_conversation_metadatas_since:
+    handler: state/conversation.get_conversation_metadatas_since_timestamp
+    timeout: 30
     layers:
       - Ref: PythonRequirementsLambdaLayer
-    timeout: 30
+    events:
+      - http:
+          path: state/conversation/get/since/{timestamp}
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+      
+  chat_convert:
+    handler: chat/convert.convert_endpoint
+    layers:
+      - ${self:custom.stageVars.PANDOC_LAMBDA_LAYER_ARN}
+      - Ref: PythonRequirementsLambdaLayer
+      - Ref: MarkitdownLambdaLayer
+    memorySize: 256
+    timeout: 120
     events:
       - http:
           path: chat/convert
           method: post
-
-  accounts_charge:
-    handler: accounts/accounts.charge_request
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state/accounts/charge
-          method: post
-
-  accounts_get:
-    handler: accounts/accounts.get_accounts
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state/accounts/get
-          method: get
-
-  accounts_save:
-    handler: accounts/accounts.save_accounts
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state/accounts/save
-          method: post
-
-
-  settings_get:
-    handler: state/usersettings.get_settings
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state/settings/get
-          method: get
-
-  settings_save:
-    handler: state/usersettings.save_settings
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: state/settings/save
-          method: post
-
-  convert:
-    handler: converters/docconverter.handler
-    layers:
-      - ${self:provider.environment.PANDOC_LAYER} 
-      - Ref: PythonRequirementsLambdaLayer
-    memorySize: 1024
-    timeout: 180
-    events:
-      - s3:
-          bucket: ${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-    
-  handlePptxUpload:
-    handler: powerpoints/core.handle_pptx_upload
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - s3:
-          bucket: ${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-          rules:
-            - prefix: templates/
-            - suffix: .pptx 
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            name: jwtAuthorizer
+            resultTtlInSeconds: 300
+    environment:
+      TEMP_DIR: /tmp/
       
-  queue_document_for_rag:
-    handler: rag/core.queue_document_for_rag
-    layers:
-      - Ref: MarkitdownLambdaLayer
-    events:
-      - s3:
-          bucket: ${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-    environment:
-        rag_process_document_queue_url:
-          Ref: RagDocumentIndexQueue
-
-  process_document_for_rag:
-    handler: rag/core.process_document_for_rag
-    layers:
-      - Ref: MarkitdownLambdaLayer
-    timeout: 300
-    events:
-        - sqs:
-            arn:
-              Fn::GetAtt:
-                - RagDocumentIndexQueue
-                - Arn
-    environment:
-        FILE_UPLOAD_ENCRYPTION_PARAMETER: /${self:service}/${sls:stage}/s3/metadata/encryption #must start with /
-        rag_process_document_queue_url:
-          Ref: RagDocumentIndexQueue
-  
-  reprocess_document_for_rag:
-    handler: files/file.reprocess_document_for_rag
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - http:
-          path: files/reprocess/rag
-          method: post
-    environment:
-        rag_process_document_queue_url:
-          Ref: RagDocumentIndexQueue
-        
-
-  queue_document_for_chunking:
-    handler: rag/core.queue_document_for_rag_chunking
-    layers:
-      - Ref: MarkitdownLambdaLayer
-    events:
-      - s3:
-          bucket: ${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-    environment:
-        rag_chunk_document_queue_url:
-          Ref: RagChunkDocumentQueue
-
-  process_document_for_chunking:
-    handler: rag/core.chunk_document_for_rag
-    layers:
-      - Ref: MarkitdownLambdaLayer
-    timeout: 300
-    events:
-        - sqs:
-            arn:
-              Fn::GetAtt:
-                - RagChunkDocumentQueue
-                - Arn
-    environment:
-        rag_chunk_document_queue_url:
-          Ref: RagChunkDocumentQueue
-
-
-  process_images_for_chat:
-    handler: images/core.process_images_for_chat
-    layers:
-      - Ref: MarkitdownLambdaLayer
-    events:
-      - s3:
-          bucket: ${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          existing: true
-
-  archive_chat_usage:
-    handler: utilities/amplify-lambda/utilities/chat_usage_archive.archive_items
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
-    events:
-      - schedule: cron(0 0 ? * SUN *) # Run every Sunday at midnight          
-  
 resources:
+  Description: Amplify Managed State Service 
   Resources:
     LambdaIAMPolicy:
       Type: AWS::IAM::ManagedPolicy
@@ -564,624 +840,767 @@ resources:
                 - sqs:ChangeMessageVisibility
                 - rds-data:ExecuteStatement
                 - rds-data:BatchExecuteStatement
-                - rds-data:BeginTransaction
-                - rds-data:CommitTransaction
-                - rds-data:RollbackTransaction
-                - dynamodb:BatchGetItem
-              Resource:
-                - 'arn:aws:secretsmanager:us-east-1:*:secret:${self:provider.environment.APP_ARN_NAME}*'
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.API_KEYS_DYNAMODB_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.API_KEYS_DYNAMODB_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.DYNAMODB_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.ASSISTANTS_DYNAMODB_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.ASSISTANTS_DYNAMODB_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.FILES_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.FILES_DYNAMO_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.USER_TAGS_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.USER_TAGS_DYNAMO_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.HASH_FILES_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.HASH_FILES_DYNAMO_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.OBJECT_ACCESS_DYNAMODB_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.OBJECT_ACCESS_DYNAMODB_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.CHAT_USAGE_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.CHAT_USAGE_ARCHIVE_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.CHAT_USAGE_ARCHIVE_DYNAMO_TABLE}/index/*"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.ACCOUNTING_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.EMBEDDING_PROGRESS_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.COST_CALCULATIONS_DYNAMO_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.COST_CALCULATIONS_DYNAMO_TABLE}/*"               
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.CONVERSATION_METADATA_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.CONVERSATION_METADATA_TABLE}/index/*"
-                - "arn:aws:sqs:${aws:region}:*:${self:provider.environment.SQS_RAG_DOCUMENT_INDEX_QUEUE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.AMPLIFY_ADMIN_DYNAMODB_TABLE}"
-                - "arn:aws:dynamodb:${aws:region}:*:table/${self:provider.environment.AMPLIFY_ADMIN_DYNAMODB_TABLE}*"
-                - "arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}"
-                - "arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_ASSISTANT_UPLOADS_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}"
-                - "arn:aws:s3:::${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}"
-                - "arn:aws:s3:::${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.SQS_RAG_DOCUMENT_INDEX_QUEUE}/*"
-                - "arn:aws:s3:::${self:provider.environment.SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE}/*"
-                - "arn:aws:sqs:${aws:region}:*:${self:provider.environment.SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE}"
-                - "arn:aws:s3:::${self:provider.environment.S3_ZIP_FILE_BUCKET_NAME}/"
-                - "arn:aws:s3:::${self:provider.environment.S3_ZIP_FILE_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}/*"
-                - "arn:aws:s3:::${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}"
-
+              Resource: "*"
+              
+    UserStateDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: key_object
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+          - AttributeName: key_object
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+    
+    AssistantsDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.ASSISTANTS_DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: assistantId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+          - AttributeName: type
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+          - AttributeName: assistantId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: createdAt-index
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: typeIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: type
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        StreamSpecification:
+          StreamViewType: KEYS_ONLY  # We'll configure KEYS_ONLY to reduce costs
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    UserFilesDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.FILES_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+          - AttributeName: type
+            AttributeType: S
+          - AttributeName: knowledgeBase
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+          - AttributeName: id
+            KeyType: RANGE
+        LocalSecondaryIndexes:
+          - IndexName: createdAtIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        GlobalSecondaryIndexes:
+          - IndexName: typeIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: type
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: knowledgeBaseIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: knowledgeBase
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        StreamSpecification:
+          StreamViewType: KEYS_ONLY
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+  
+    UserTagsDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.USER_TAGS_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: tag
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+          - AttributeName: tag
+            KeyType: RANGE
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    HashFilesDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.HASH_FILES_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: hash
+            AttributeType: S
+        KeySchema:
+          - AttributeName: hash
+            KeyType: HASH
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    AccountingChargesDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.ACCOUNTING_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+          - AttributeName: model
+            AttributeType: S
+          - AttributeName: accountId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: ModelTimestampIndex
+            KeySchema:
+              - AttributeName: model
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: AccountIdTimestampIndex
+            KeySchema:
+              - AttributeName: accountId
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    AccountsDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    AccountingChatUsageDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CHAT_USAGE_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: model
+            AttributeType: S
+          - AttributeName: accountId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: UserTimestampIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: ModelTimestampIndex
+            KeySchema:
+              - AttributeName: model
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: AccountIdTimestampIndex
+            KeySchema:
+              - AttributeName: accountId
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+    
+    AccountingChatUsageArchiveDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CHAT_USAGE_ARCHIVE_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: model
+            AttributeType: S
+          - AttributeName: accountId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: UserTimestampIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: ModelTimestampIndex
+            KeySchema:
+              - AttributeName: model
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: AccountIdTimestampIndex
+            KeySchema:
+              - AttributeName: accountId
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    CostCalculationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.COST_CALCULATIONS_DYNAMO_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    ConversationMetadataTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CONVERSATION_METADATA_TABLE}
+        AttributeDefinitions:
+          - AttributeName: user
+            AttributeType: S
+          - AttributeName: conversationId
+            AttributeType: S
+          - AttributeName: lastModified
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user
+            KeyType: HASH
+          - AttributeName: conversationId
+            KeyType: RANGE
+        LocalSecondaryIndexes:
+          - IndexName: LastModifiedIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: lastModified
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PROVISIONED
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: false
+        SSESpecification:
+          SSEEnabled: true
+    
+    AccessLogsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        # AccessControl: LogDeliveryWrite # Removed - incompatible with BucketOwnerEnforced
+    
     StateBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.S3_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled  
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: share-bucket/
+    
+    S3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: ${self:provider.environment.S3_BUCKET_NAME}
+        PolicyDocument:
+          Statement:
+            - Action:
+                - "s3:PutObject"
+              Effect: Deny
+              Resource:
+                - !Sub "arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}/*"
+              Principal: "*"
+              Condition:
+                StringNotEquals:
+                  s3:x-amz-server-side-encryption: "AES256"
+    
+    ConversionInputBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
         CorsConfiguration:
           CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['PUT', 'POST']
-              AllowedHeaders: ['*']
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
               MaxAge: 3000
         LoggingConfiguration:
-          DestinationBucketName: 
+          DestinationBucketName:
             Ref: AccessLogsBucket
-          LogFilePrefix: S3AccessLogs/
-
+          LogFilePrefix: conversion-input-bucket/
+    
+    ConversionOutputBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: conversion-output-bucket/
+    
     AssistantUploadsBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.S3_ASSISTANT_UPLOADS_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
         CorsConfiguration:
           CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['PUT', 'POST']
-              AllowedHeaders: ['*']
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
               MaxAge: 3000
         LoggingConfiguration:
-          DestinationBucketName: 
+          DestinationBucketName:
             Ref: AccessLogsBucket
-          LogFilePrefix: S3AccessLogs/              
-
-    AssistantsDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false
-        AttributeDefinitions:
-          -
-            AttributeName: id
-            AttributeType: S
-          -
-            AttributeName: user
-            AttributeType: S
-          -
-            AttributeName: name
-            AttributeType: S
-        KeySchema:
-          -
-            AttributeName: id
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          -
-            IndexName: UserIndex
-            KeySchema:
-              -
-                AttributeName: user
-                KeyType: HASH
-
-            Projection:
-              ProjectionType: ALL
-          -
-            IndexName: UserNameIndex
-            KeySchema:
-              - AttributeName: user
-                KeyType: HASH
-              - AttributeName: name
-                KeyType: RANGE
-
-            Projection:
-              ProjectionType: ALL
-        TableName: ${self:provider.environment.ASSISTANTS_DYNAMODB_TABLE}
-
-
-    UserStateDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        AttributeDefinitions:
-          -
-            AttributeName: id
-            AttributeType: S
-          -
-            AttributeName: user
-            AttributeType: S
-          -
-            AttributeName: name
-            AttributeType: S
-        KeySchema:
-          -
-            AttributeName: id
-            KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        GlobalSecondaryIndexes:
-          -
-            IndexName: UserIndex
-            KeySchema:
-              -
-                AttributeName: user
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          -
-            IndexName: UserNameIndex
-            KeySchema:
-              - AttributeName: user
-                KeyType: HASH
-              - AttributeName: name
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-        TableName: ${self:provider.environment.DYNAMODB_TABLE}
-
-
-    UserFilesDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          -
-            AttributeName: id
-            AttributeType: S
-          -
-            AttributeName: createdBy
-            AttributeType: S
-          -
-            AttributeName: createdAt
-            AttributeType: S
-          -
-            AttributeName: type
-            AttributeType: S
-          -
-            AttributeName: name
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          -
-            IndexName: createdBy
-            KeySchema:
-              -
-                AttributeName: createdBy
-                KeyType: HASH
-              -
-                AttributeName: id
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          -
-            IndexName: createdByAndAt
-            KeySchema:
-              -
-                AttributeName: createdBy
-                KeyType: HASH
-              -
-                AttributeName: createdAt
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          -
-            IndexName: createdByAndType
-            KeySchema:
-              -
-                AttributeName: createdBy
-                KeyType: HASH
-              -
-                AttributeName: type
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          -
-            IndexName: createdByAndName
-            KeySchema:
-              -
-                AttributeName: createdBy
-                KeyType: HASH
-              -
-                AttributeName: name
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-        TableName: ${self:provider.environment.FILES_DYNAMO_TABLE}
-
-    UserTagsDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          -
-            AttributeName: user
-            AttributeType: S
-        KeySchema:
-          - AttributeName: user
-            KeyType: HASH
-        TableName: ${self:provider.environment.USER_TAGS_DYNAMO_TABLE}
-
-
-    HashFilesDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          -
-            AttributeName: id
-            AttributeType: S
-          - AttributeName: textLocationKey
-            AttributeType: S  
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        TableName: ${self:provider.environment.HASH_FILES_DYNAMO_TABLE}
-        GlobalSecondaryIndexes:
-          - IndexName: TextLocationIndex
-            KeySchema:
-              - AttributeName: textLocationKey
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
-
-    AccountingChargesDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          -
-            AttributeName: id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        TableName: ${self:provider.environment.ACCOUNTING_DYNAMO_TABLE}
-
-    AccountsDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          -
-            AttributeName: user
-            AttributeType: S
-        KeySchema:
-          - AttributeName: user
-            KeyType: HASH
-        TableName: ${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}
-
-    AccountingChatUsageDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-          - AttributeName: user
-            AttributeType: S
-          - AttributeName: time
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        TableName: ${self:provider.environment.CHAT_USAGE_DYNAMO_TABLE}
-        GlobalSecondaryIndexes:
-          - IndexName: UserUsageTimeIndex
-            KeySchema:
-              - AttributeName: user
-                KeyType: HASH
-              - AttributeName: time
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL  # Or specify the attributes you want projected
-          - IndexName: DateIndex
-            KeySchema:
-              - AttributeName: time
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL  # Or specify the attributes you want projected
-        StreamSpecification:  # enable streaming
-          StreamViewType: NEW_AND_OLD_IMAGES        
-
-    AccountingChatUsageArchiveDynamoDbTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false          
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-          - AttributeName: user
-            AttributeType: S
-          - AttributeName: time
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        TableName: ${self:provider.environment.CHAT_USAGE_ARCHIVE_DYNAMO_TABLE}
-        GlobalSecondaryIndexes:
-          - IndexName: UserUsageTimeIndex
-            KeySchema:
-              - AttributeName: user
-                KeyType: HASH
-              - AttributeName: time
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL  # Or specify the attributes you want projected
-          - IndexName: DateIndex
-            KeySchema:
-              - AttributeName: time
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL  # Or specify the attributes you want projected
-
-    ConversationMetadataTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        SSESpecification:
-          SSEEnabled: false
-        AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-          - AttributeName: conversation_id
-            AttributeType: S
-          - AttributeName: last_modified
-            AttributeType: N
-        KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
-          - AttributeName: conversation_id
-            KeyType: RANGE
-        TableName: ${self:provider.environment.CONVERSATION_METADATA_TABLE}
-        GlobalSecondaryIndexes:
-          - IndexName: TimestampIndex
-            KeySchema:
-              - AttributeName: user_id
-                KeyType: HASH
-              - AttributeName: last_modified
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-    ConversionInputBucket:
-         Type: AWS::S3::Bucket
-         Properties:
-          BucketName: ${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket 
-            LogFilePrefix: S3AccessLogs/
-
-    ConversionOutputBucket:
-         Type: AWS::S3::Bucket
-         DependsOn: LambdaIAMPolicy
-         Properties:
-          BucketName: ${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET', 'PUT', 'POST']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/ 
-
-
-
-    RagInputBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET','PUT', 'POST']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
+          LogFilePrefix: assistant-uploads-bucket/
     
     ImageInputBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET','PUT', 'POST']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
-
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: image-input-bucket/
+    
+    RagInputBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: rag-input-bucket/
+    
     RagChunksBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
-
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: rag-chunks-bucket/
+    
     FileTextBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET','HEAD']
-                AllowedHeaders: ['*']
-                MaxAge: 3000
-          LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
-
-    RagDocumentIndexQueue:
-          Type: "AWS::SQS::Queue"
-          Properties:
-            VisibilityTimeout: 300
-            QueueName: ${self:provider.environment.SQS_RAG_DOCUMENT_INDEX_QUEUE}
-
-    RagChunkDocumentQueue:
-          Type: "AWS::SQS::Queue"
-          Properties:
-            VisibilityTimeout: 300
-            QueueName: ${self:provider.environment.SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE}
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
+        LoggingConfiguration:
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: file-text-bucket/
     
     remoteConversationsBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.S3_CONVERSATIONS_BUCKET_NAME}
-        CorsConfiguration:
-          CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['PUT', DELETE, GET]
-              AllowedHeaders: ['*']
-              MaxAge: 3000
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
         LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: conversations-bucket/
     
     ZipFileBucket:
-      Type: 'AWS::S3::Bucket'
+      Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.S3_ZIP_FILE_BUCKET_NAME}
-        CorsConfiguration:
-          CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['GET','PUT','POST']
-              AllowedHeaders: ['*']
-              MaxAge: 3000
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        VersioningConfiguration:
+          Status: Enabled 
         LoggingConfiguration:
-            DestinationBucketName: 
-              Ref: AccessLogsBucket
-            LogFilePrefix: S3AccessLogs/       
-
-    AccessLogsBucket:
-      Type: 'AWS::S3::Bucket'
+          DestinationBucketName:
+            Ref: AccessLogsBucket
+          LogFilePrefix: zip-file-bucket/
+    
+    RagDocumentIndexQueue:
+      Type: AWS::SQS::Queue
       Properties:
-        BucketName: ${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}
-
-    AccessLogsBucketPolicy:
-      Type: 'AWS::S3::BucketPolicy'
+        QueueName: ${self:provider.environment.SQS_RAG_DOCUMENT_INDEX_QUEUE}
+        VisibilityTimeout: 180
+        MessageRetentionPeriod: 345600  # 4 days in seconds
+        KmsDataKeyReusePeriodSeconds: 600
+    
+    RagChunkDocumentQueue:
+      Type: AWS::SQS::Queue
       Properties:
-        Bucket:
-          Ref: AccessLogsBucket
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Sid: 'S3ServerAccessLogsPolicy'
-              Effect: 'Allow'
-              Principal:
-                Service: 'logging.s3.amazonaws.com'
-              Action:
-                - 's3:PutObject'
-              Resource: 
-                Fn::Join:
-                  - ''
-                  - - 'arn:aws:s3:::'
-                    - Ref: AccessLogsBucket
-                    - '/S3AccessLogs/*'
-              Condition:
-                StringEquals:
-                  'aws:SourceAccount': ${aws:accountId}
+        QueueName: ${self:provider.environment.SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE}
+        VisibilityTimeout: 180
+        MessageRetentionPeriod: 345600  # 4 days in seconds
+        KmsDataKeyReusePeriodSeconds: 600
+
   Outputs:
-      AccountingChatUsageDynamoStreamArn:
-        Description: "The ARN of the DynamoDB Stream for the ChatUsage table"
-        Value: !GetAtt AccountingChatUsageDynamoDbTable.StreamArn
-        Export:
-          Name: 
-            Fn::Sub: "${sls:stage}-AccountingChatUsageDynamoStreamArn"
-    
-      ApiGatewayId:
-        Description: "The ID of the API Gateway"
-        Value: !Ref ApiGatewayRestApi
-        Export:
-          Name: 
-            Fn::Sub: "${sls:stage}-RestApiId"
-    
-      ApiGatewayRootResourceId:
-        Description: "The ID of the API Gateway root resource"
-        Value: 
-          Fn::GetAtt: [ApiGatewayRestApi, "RootResourceId"]
-        Export:
-          Name: 
-            Fn::Sub: "${sls:stage}-RestApiRootResourceId"
+    ApiGatewayId:
+      Value:
+        Ref: ApiGatewayRestApi
+      Export:
+        Name: ${sls:stage}-RestApiId
 
+    ApiGatewayRootResourceId:
+      Value:
+        Fn::GetAtt:
+          - ApiGatewayRestApi
+          - RootResourceId
+      Export:
+        Name: ${sls:stage}-RestApiRootResourceId
 
-      ConverstionTemplatesBucketOutput:
-        Description: "The S3 bucket name for ppt conversion templates"
-        Value: !Ref ConversionOutputBucket
-        Export:
-          Name: 
-            Fn::Sub: "${sls:stage}-ConversionOutputBucket"
-
+    RestApiUrl:
+      Value:
+        Fn::Join:
+          - ""
+          - - "https://"
+            - Ref: ApiGatewayRestApi
+            - ".execute-api.${aws:region}.amazonaws.com/${sls:stage}"
+      Export:
+        Name: ${sls:stage}-RestApiUrl

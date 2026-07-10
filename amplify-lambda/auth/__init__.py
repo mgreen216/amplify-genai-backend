@@ -1,0 +1,1 @@
+# JWT Authorizer module for Cognito authentication

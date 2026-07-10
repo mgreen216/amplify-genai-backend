@@ -8,7 +8,6 @@ annotated-types==0.7.0
     # via pydantic
 attrs==25.3.0
     # via
-    #   jsonschema
     #   referencing
 beautifulsoup4==4.13.4
     # via -r requirements.in
@@ -43,10 +42,8 @@ jmespath==1.0.1
     #   botocore
 joblib==1.5.1
     # via nltk
-jsonschema==4.23.0
+jsonschema==4.17.3
     # via -r requirements.in
-jsonschema-specifications==2025.4.1
-    # via jsonschema
 lxml==5.4.0
     # via
     #   python-docx
@@ -85,7 +82,6 @@ pyyaml==6.0.2
     # via -r requirements.in
 referencing==0.36.2
     # via
-    #   jsonschema
     #   jsonschema-specifications
 regex==2024.11.6
     # via
@@ -95,9 +91,7 @@ requests==2.32.3
     # via
     #   -r requirements.in
     #   tiktoken
-rpds-py==0.25.1
     # via
-    #   jsonschema
     #   referencing
 rsa==4.9.1
     # via python-jose
