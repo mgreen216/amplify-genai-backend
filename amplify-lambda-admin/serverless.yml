@@ -13,6 +13,11 @@ plugins:
   # - serverless-cloudformation-changesets
 
 custom:
+  # Suffix of the S3 buckets owned by the amplify-lambda service. Must stay in
+  # lockstep with amplify-lambda/serverless.yml `custom.bucketSuffix`. Never
+  # derive this from sls:instanceId -- that is Date.now() at CLI load.
+  bucketSuffix: 1753366085924
+
   pythonRequirements:
     dockerizePip: true
   stageVars: ${file(../var/${self:provider.stage}-var.yml)}
@@ -54,7 +59,13 @@ provider:
     APP_ARN_NAME: ${sls:stage}-amplify-app-vars
     SECRETS_ARN_NAME: ${sls:stage}-amplify-app-secrets
     LLM_ENDPOINTS_SECRETS_NAME_ARN: ${sls:stage}-openai-endpoints
-    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${sls:instanceId}
+    # Must match the bucket amplify-lambda actually owns. sls:instanceId is
+    # Date.now() at CLI load, so this resolved to a fresh suffix on every
+    # deploy: the live admin Lambdas currently point at
+    # amp-prod-doc-conversion-output-1775673123937 (this service's 2026-04-08
+    # deploy time), a bucket that has never existed. The real bucket is
+    # amp-prod-doc-conversion-output-1753366085924.
+    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${self:custom.bucketSuffix}
     AMPLIFY_GROUPS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-amplify-groups
     IDP_PREFIX: ${self:custom.stageVars.IDP_PREFIX}
 

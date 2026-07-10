@@ -23,13 +23,31 @@ layers:
       - python3.11
       
 custom:
+  # Stable suffix for every S3 bucket this service owns.
+  #
+  # This used to be the sls:instanceId variable, which Serverless resolves to
+  # Date.now() at CLI load -- a NEW value on every invocation. Because S3 buckets
+  # are custom-named, a changed BucketName means CloudFormation REPLACEMENT
+  # (delete + create). Every `sls deploy` therefore tried to destroy and
+  # recreate all 11 prod buckets, taking user conversations, shares, RAG
+  # chunks, assistant uploads, and file text with them. That is what broke the
+  # 2026-04-06 prod deploy and left the stack in UPDATE_ROLLBACK_COMPLETE.
+  #
+  # The literal below is the suffix actually deployed on 2025-07-24. It must
+  # match the live buckets exactly -- verify with:
+  #   aws s3api list-buckets --query "Buckets[?contains(Name,'1753366085924')].Name"
+  # embedding/serverless.yml:81 already hardcodes the same value.
+  #
+  # DO NOT make this dynamic again.
+  bucketSuffix: 1753366085924
+
   pythonRequirements:
     dockerizePip: false
     layer: true
     pythonBin: python3.11
-    # uncomment in case of issues with pythonRequirement layers not uploading to aws 
+    # uncomment in case of issues with pythonRequirement layers not uploading to aws
     useStaticCache: false  # Uses a static path for the cache
-    useDownloadCache: false 
+    useDownloadCache: false
 
   prune:
     automatic: true
@@ -75,22 +93,22 @@ provider:
     CHAT_USAGE_DYNAMO_TABLE: ${self:service}-${sls:stage}-chat-usage
     CHAT_USAGE_ARCHIVE_DYNAMO_TABLE: ${self:service}-${sls:stage}-chat-usage-archive
     COST_CALCULATIONS_DYNAMO_TABLE: ${self:service}-${sls:stage}-cost-calculations
-    S3_ACCESS_LOGS_BUCKET_NAME: amp-${sls:stage}-access-logs-${sls:instanceId}
+    S3_ACCESS_LOGS_BUCKET_NAME: amp-${sls:stage}-access-logs-${self:custom.bucketSuffix}
     LAMBDA_IAM_POLICY_NAME: ${self:service}-${sls:stage}-lambda-policy
-    S3_BUCKET_NAME: amp-${sls:stage}-share-${sls:instanceId}  
-    S3_CONVERSION_INPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-input-${sls:instanceId}
-    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${sls:instanceId}
-    S3_ASSISTANT_UPLOADS_BUCKET_NAME: amp-${sls:stage}-assistant-uploads-${sls:instanceId}
-    S3_IMAGE_INPUT_BUCKET_NAME: amp-${sls:stage}-image-input-${sls:instanceId}
-    S3_RAG_INPUT_BUCKET_NAME: amp-${sls:stage}-rag-input-${sls:instanceId}
-    S3_RAG_CHUNKS_BUCKET_NAME: amp-${sls:stage}-rag-chunks-${sls:instanceId}
-    S3_FILE_TEXT_BUCKET_NAME: amp-${sls:stage}-file-text-${sls:instanceId}
+    S3_BUCKET_NAME: amp-${sls:stage}-share-${self:custom.bucketSuffix}  
+    S3_CONVERSION_INPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-input-${self:custom.bucketSuffix}
+    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${self:custom.bucketSuffix}
+    S3_ASSISTANT_UPLOADS_BUCKET_NAME: amp-${sls:stage}-assistant-uploads-${self:custom.bucketSuffix}
+    S3_IMAGE_INPUT_BUCKET_NAME: amp-${sls:stage}-image-input-${self:custom.bucketSuffix}
+    S3_RAG_INPUT_BUCKET_NAME: amp-${sls:stage}-rag-input-${self:custom.bucketSuffix}
+    S3_RAG_CHUNKS_BUCKET_NAME: amp-${sls:stage}-rag-chunks-${self:custom.bucketSuffix}
+    S3_FILE_TEXT_BUCKET_NAME: amp-${sls:stage}-file-text-${self:custom.bucketSuffix}
     SQS_RAG_DOCUMENT_INDEX_QUEUE: ${self:service}-${sls:stage}-rag-document-index-queue
     SQS_RAG_CHUNK_DOCUMENT_INDEX_QUEUE: ${self:service}-${sls:stage}-rag-document-chunk-queue
     EMBEDDING_PROGRESS_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-embedding-${sls:stage}-embedding-progress
     OBJECT_ACCESS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-object-access
-    S3_CONVERSATIONS_BUCKET_NAME:  amp-${sls:stage}-user-conversations-${sls:instanceId}
-    S3_ZIP_FILE_BUCKET_NAME: amp-${sls:stage}-zip-files-${sls:instanceId}
+    S3_CONVERSATIONS_BUCKET_NAME:  amp-${sls:stage}-user-conversations-${self:custom.bucketSuffix}
+    S3_ZIP_FILE_BUCKET_NAME: amp-${sls:stage}-zip-files-${self:custom.bucketSuffix}
     API_KEYS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-api-keys
     CONVERSATION_METADATA_TABLE: ${self:service}-${sls:stage}-conversation-metadata
     API_BASE_URL: https://${self:custom.stageVars.CUSTOM_API_DOMAIN}/
@@ -102,7 +120,6 @@ provider:
     
     OBJECT_S3_PERMISSION_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-object-s3-permissions
     COGNITO_GROUP_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-user-groups
-    AMPLIFY_DATA_BUCKET: amp-${sls:stage}-data-${sls:instanceId}
 
     CHAT_BILLING_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-chat-billing-${sls:stage}-chat-billing
     MODEL_RATE_TABLE_NAME: amplify-${self:custom.stageVars.DEP_NAME}-chat-billing-${sls:stage}-model-rate-table
