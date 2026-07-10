@@ -1,0 +1,13 @@
+{
+  "AlarmName": "amplify-lambda-memory-utilization",
+  "ComparisonOperator": "GreaterThanThreshold",
+  "EvaluationPeriods": 3,
+  "MetricName": "MemoryUtilization",
+  "Namespace": "AWS/Lambda",
+  "Period": 300,
+  "Statistic": "Maximum",
+  "Threshold": 80.0,
+  "ActionsEnabled": true,
+  "AlarmDescription": "Lambda memory usage above 80%",
+  "TreatMissingData": "notBreaching"
+}

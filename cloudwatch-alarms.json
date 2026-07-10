@@ -1,0 +1,19 @@
+{
+  "AlarmName": "amplify-lambda-memory-critical",
+  "ComparisonOperator": "GreaterThanThreshold",
+  "EvaluationPeriods": 2,
+  "MetricName": "Duration",
+  "Namespace": "AWS/Lambda",
+  "Period": 60,
+  "Statistic": "Average",
+  "Threshold": 850000.0,
+  "ActionsEnabled": true,
+  "AlarmDescription": "Lambda approaching timeout limit",
+  "TreatMissingData": "notBreaching",
+  "Dimensions": [
+    {
+      "Name": "FunctionName",
+      "Value": "amplify-lambda-js-prod-index"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+# Performance Configuration for Amplify Lambda Functions
+# This file contains optimized memory and timeout settings for all Lambda functions
+
+# Memory allocation guidelines:
+# - LLM/AI operations: 3008 MB (max CPU performance)
+# - Data processing: 1536-3008 MB
+# - Simple CRUD operations: 512-1024 MB
+# - Authentication/validation: 256-512 MB
+
+lambda_memory_configs:
+  # High-performance functions (LLM operations)
+  llm-router:
+    memorySize: 3008
+    timeout: 300
+    reservedConcurrentExecutions: 10  # Provisioned concurrency for critical path
+    
+  amplify-lambda:
+    memorySize: 3008
+    timeout: 300
+    
+  amplify-lambda-optimizer:
+    memorySize: 3008
+    timeout: 300
+    
+  # Medium-performance functions (data processing)
+  amplify-assistants:
+    memorySize: 1536
+    timeout: 120
+    
+  embedding:
+    memorySize: 1536
+    timeout: 120
+    
+  canvas-integrator:
+    memorySize: 1024
+    timeout: 60
+    
+  # Standard functions (CRUD operations)
+  amplify-lambda-api:
+    memorySize: 1024
+    timeout: 30
+    
+  amplify-lambda-admin:
+    memorySize: 1024
+    timeout: 30
+    
+  chat-billing:
+    memorySize: 512
+    timeout: 30
+    
+  # Lightweight functions
+  amplify-lambda-ops:
+    memorySize: 512
+    timeout: 30
+    
+  object-access:
+    memorySize: 512
+    timeout: 30
+
+# API Gateway caching configuration
+api_gateway_caching:
+  # Cache model availability checks
+  - path: /*/models
+    method: GET
+    ttl: 300  # 5 minutes
+    
+  # Cache assistant lists
+  - path: /*/assistants
+    method: GET
+    ttl: 300
+    
+  # Cache user settings (with per-user cache key)
+  - path: /*/settings
+    method: GET
+    ttl: 60
+    cacheKeyParameters:
+      - Authorization
+      
+# CloudWatch alarms for performance monitoring
+cloudwatch_alarms:
+  - name: LambdaColdStartAlarm
+    metric: Duration
+    threshold: 5000  # 5 seconds
+    evaluationPeriods: 2
+    
+  - name: LambdaErrorRateAlarm
+    metric: Errors
+    threshold: 5  # 5 errors
+    evaluationPeriods: 1
+    
+  - name: APIGateway4xxAlarm
+    metric: 4XXError
+    threshold: 10
+    evaluationPeriods: 2
+    
+  - name: APIGateway5xxAlarm
+    metric: 5XXError
+    threshold: 5
+    evaluationPeriods: 1

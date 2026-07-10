@@ -1,0 +1,57 @@
+# Health Check Configuration Template
+# Copy this file to your service directory as health-check.yml and customize
+
+service_name: "service-name"
+health_checks:
+  # API endpoint check
+  - type: "api_endpoint"
+    name: "Main API Health"
+    endpoint: "/health"
+    method: "GET"
+    expected_status: 200
+    timeout: 5000
+    
+  # Lambda function check
+  - type: "lambda_function"
+    name: "Lambda Function Test"
+    function_name: "${service}-${stage}-main"
+    test_payload: '{"test": true}'
+    expected_response_contains: "success"
+    
+  # DynamoDB table check
+  - type: "dynamodb_table"
+    name: "DynamoDB Table Exists"
+    table_name: "${service}-${stage}-table"
+    check_type: "exists"
+    
+  # CloudFormation stack check
+  - type: "cloudformation_stack"
+    name: "Stack Status Check"
+    stack_name: "${service}-${stage}"
+    expected_status: ["CREATE_COMPLETE", "UPDATE_COMPLETE"]
+    
+  # Custom check (runs a script)
+  - type: "custom"
+    name: "Custom Validation"
+    script: "./scripts/validate-deployment.sh"
+    expected_exit_code: 0
+
+# Post-deployment actions
+post_deployment:
+  # Warm up Lambda functions
+  - action: "warm_lambda"
+    functions:
+      - "${service}-${stage}-main"
+      - "${service}-${stage}-secondary"
+    
+  # Run integration tests
+  - action: "run_tests"
+    command: "npm run test:integration"
+    timeout: 300000
+    
+  # Send notification
+  - action: "notify"
+    type: "cloudwatch_metric"
+    metric_name: "DeploymentSuccess"
+    namespace: "Amplify/Deployments"
+    value: 1
