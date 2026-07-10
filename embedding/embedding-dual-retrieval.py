@@ -43,7 +43,7 @@ def get_top_similar_qas(query_embedding, src_ids, limit=5):
         database=pg_database,
         user=pg_user,
         password=pg_password,
-        port=3306
+        port=int(os.environ.get('RAG_POSTGRES_DB_PORT', '5432'))
     ) as conn:
         
         # Register pgvector extension
@@ -94,7 +94,7 @@ def get_top_similar_docs(query_embedding, src_ids, limit=5):
         database=pg_database,
         user=pg_user,
         password=pg_password,
-        port=3306
+        port=int(os.environ.get('RAG_POSTGRES_DB_PORT', '5432'))
     ) as conn:
         
         # Register pgvector extension

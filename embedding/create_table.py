@@ -30,7 +30,7 @@ def create_table():
         'user': pg_user,
         'password': pg_password,
         'host': pg_host,
-        'port': 3306,  # Non-standard port for RDS PostgreSQL; this is intentional as per the user's environment
+        'port': int(os.environ.get('RAG_POSTGRES_DB_PORT', '5432')),
     }
 
     # SQL commands to create the embeddings table and related components

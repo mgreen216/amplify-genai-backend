@@ -141,12 +141,13 @@ db_connection = None
 def get_db_connection():
     global db_connection
     if db_connection is None or db_connection.closed:
+        pg_port = int(os.environ.get('RAG_POSTGRES_DB_PORT', '5432'))
         admin_conn_params = {
             'dbname': pg_database,
             'user': pg_user,
             'password': pg_password,
             'host': pg_host,
-            'port': 3306  # ensure the port matches the PostgreSQL port which is 5432 by default
+            'port': pg_port
         }
         try:
             db_connection = psycopg2.connect(
@@ -154,7 +155,11 @@ def get_db_connection():
                 database=pg_database,
                 user=pg_user,
                 password=pg_password,
-                port=3306  # ensure the port matches the PostgreSQL port which is 5432 by default
+                port=pg_port,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=3
             )
             logging.info("Database connection established.")
         except psycopg2.Error as e:

@@ -48,7 +48,7 @@ def delete_embeddings_from_db(src_id):
         database=pg_database,
         user=pg_user,
         password=rag_pg_password,
-        port=3306
+        port=int(os.environ.get('RAG_POSTGRES_DB_PORT', '5432'))
     ) as conn:
         with conn.cursor() as cur:
             try:

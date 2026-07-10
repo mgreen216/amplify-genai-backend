@@ -1,4 +1,4 @@
-service: amplify-${self:custom.stageVars.DEP_NAME}-embedding
+service: amplify-${self:custom.stageVars.DEP_NAME}-embedding-v2
 
 frameworkVersion: '3'
 
@@ -30,7 +30,8 @@ custom:
     includeLayers: true
     number: 5
 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -52,7 +53,7 @@ provider:
   versionFunctions: false
   logRetentionInDays: 365
   deploymentBucket:
-    name: ${self:service}-${sls:stage}-deployment-bucket
+    name: amp-prod-embed-v2-deploy-em73h9k2
     serverSideEncryption: AES256
 
   apiGateway:
@@ -77,7 +78,7 @@ provider:
     EMBEDDING_CHUNKS_INDEX_QUEUE: ${self:service}-${sls:stage}-embedding-chunks-index-queue
     OBJECT_ACCESS_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-object-access
     ACCOUNTS_DYNAMO_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-lambda-${sls:stage}-accounts
-    S3_RAG_CHUNKS_BUCKET_NAME: amplify-${self:custom.stageVars.DEP_NAME}-lambda-${sls:stage}-rag-chunks
+    S3_RAG_CHUNKS_BUCKET_NAME: amp-${sls:stage}-rag-chunks-1753366085924
     API_KEYS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-api-keys
     HASH_FILES_DYNAMO_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-lambda-${sls:stage}-hash-files
     CHAT_USAGE_DYNAMO_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-lambda-${sls:stage}-chat-usage
@@ -141,11 +142,12 @@ functions:
       layers:
         - Ref: PythonRequirementsLambdaLayer
       handler: embedding-sqs.queue_document_for_embedding
-      events:
-        - s3:
-            bucket: ${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}
-            event: s3:ObjectCreated:*
-            existing: true
+      # Temporarily disabled S3 trigger due to deployment issues
+      # events:
+      #   - s3:
+      #       bucket: ${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}
+      #       event: s3:ObjectCreated:*
+      #       existing: true
       environment:
           EMBEDDING_CHUNKS_INDEX_QUEUE:
             Ref: EmbeddingChunksIndexQueue
@@ -156,7 +158,6 @@ functions:
       handler: embedding.lambda_handler
       layers:
         - Ref: PythonRequirementsLambdaLayer
-      reservedConcurrency: 200
       vpc: 
         securityGroupIds:
           - !Ref LambdaSecurityGroup
@@ -199,7 +200,15 @@ functions:
       - http:
           path: /embedding-dual-retrieval
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   terminate_embedding:
@@ -211,7 +220,15 @@ functions:
       - http:
           path: /embedding/terminate
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   get_sqs_messages:
@@ -223,7 +240,15 @@ functions:
       - http:
           path: /embedding/sqs/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   delete_embeddings:
     runtime: python3.11
@@ -241,7 +266,15 @@ functions:
       - http:
           path: /embedding-delete
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
         
 
