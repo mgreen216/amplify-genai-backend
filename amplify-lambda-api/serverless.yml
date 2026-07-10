@@ -20,7 +20,8 @@ custom:
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
     
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -69,7 +70,15 @@ functions:
       - http:
           path: apiKeys/api_documentation/get_templates
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_api_keys:
     handler: service/core.get_api_keys_for_user
@@ -77,7 +86,15 @@ functions:
       - http:
           path: apiKeys/keys/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
   
   get_api_keys_ast:
     handler: service/core.get_api_keys_for_assistant
@@ -85,7 +102,15 @@ functions:
       - http:
           path: apiKeys/get_keys_ast
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_api_key:
     handler: service/core.get_api_key
@@ -93,7 +118,15 @@ functions:
       - http:
           path: apiKeys/key/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   create_api_keys:
     handler: service/core.create_api_keys
@@ -101,7 +134,15 @@ functions:
       - http:
           path: apiKeys/keys/create
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   update_api_key:
     handler: service/core.update_api_keys_for_user
@@ -109,7 +150,15 @@ functions:
       - http:
           path: apiKeys/keys/update
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       
   deactivate_key:
     handler: service/core.deactivate_key
@@ -117,7 +166,15 @@ functions:
       - http:
           path: apiKeys/key/deactivate
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_system_ids:
     handler: service/core.get_system_ids
@@ -125,7 +182,15 @@ functions:
       - http:
           path: apiKeys/get_system_ids
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_api_doc:
     handler: service/core.get_documentation
@@ -133,7 +198,15 @@ functions:
       - http:
           path: apiKeys/api_documentation/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   upload_api_doc:
     handler: service/core.get_api_doc_presigned_urls
@@ -141,7 +214,15 @@ functions:
       - http:
           path: apiKeys/api_documentation/upload
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
         
 
 resources:
@@ -175,19 +256,4 @@ resources:
                 - s3:ListBucket
               Resource:
                 - "arn:aws:s3:::${self:provider.environment.S3_API_DOCUMENTATION_BUCKET}"
-                - "arn:aws:s3:::${self:provider.environment.S3_API_DOCUMENTATION_BUCKET}/*"   
-    APIDocumentBucket:
-        Type: 'AWS::S3::Bucket'
-        Properties:
-          BucketName: ${self:provider.environment.S3_API_DOCUMENTATION_BUCKET}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET', 'PUT', 'POST']
-                AllowedHeaders: ['*']
-                MaxAge: 3000     
-          BucketEncryption:
-            ServerSideEncryptionConfiguration:
-              - ServerSideEncryptionByDefault:
-                  SSEAlgorithm: AES256        
-        
+                - "arn:aws:s3:::${self:provider.environment.S3_API_DOCUMENTATION_BUCKET}/*"

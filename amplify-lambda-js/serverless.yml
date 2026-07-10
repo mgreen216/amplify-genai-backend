@@ -1,16 +1,20 @@
 service: amplify-${self:custom.stageVars.DEP_NAME}-amplify-js
 frameworkVersion: '3'
 
-plugins:
-  - serverless-offline
-  - serverless-prune-plugin 
-  - serverless-cloudformation-changesets
+# Plugins temporarily disabled (2026-05-07) to unblock prod deploy after
+# serverless-offline@13.9.0 (ESM) became incompatible with serverless@3.38
+# (CJS). CHANGE_SET_BOOLEAN is `false` in prod-var.yml so the change-set
+# safety plugin is already dormant; serverless-prune-plugin isn't actually
+# installed; serverless-offline is dev-only. None active at deploy time.
+# RESTORE after pinning serverless-offline to ^12.0.4 in package.json.
+plugins: []
 
 custom:
   serverless-offline: 
     custom:
       config: ${file(../var/${self:provider.stage}-var.yml)} 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
 
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
@@ -112,7 +116,15 @@ functions:
       - http:
           path: api_g_chat/chat
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   assistant_queue:
@@ -145,7 +157,15 @@ functions:
       - http:
           path: billing/mtd-cost
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   api_key_user_cost:
     handler: billing/mtd.apiKeyUserCostHandler
@@ -154,7 +174,15 @@ functions:
       - http:
           path: billing/api-key-user-cost
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   list_all_user_mtd_costs:
     handler: billing/mtd.listAllUserMtdCostsHandler
@@ -163,7 +191,15 @@ functions:
       - http:
           path: billing/list-all-user-mtd-costs
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
 resources:
@@ -339,23 +375,11 @@ resources:
             Projection:
               ProjectionType: ALL
         TableName: ${self:provider.environment.HISTORY_COST_CALCULATIONS_DYNAMO_TABLE}
-    ChatTracesBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.TRACE_BUCKET_NAME}
     AssistantTaskQueue:
           Type: "AWS::SQS::Queue"
           Properties:
             VisibilityTimeout: 900
             QueueName: ${self:provider.environment.ASSISTANT_QUEUE_NAME}            
-    AssistantTaskResultsBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.ASSISTANT_TASK_RESULTS_BUCKET_NAME}
-    AssistantLogsBucket:
-        Type: AWS::S3::Bucket
-        Properties:
-          BucketName: ${self:provider.environment.ASSISTANT_LOGS_BUCKET_NAME}
     BedrockIAMPolicy:
       Type: AWS::IAM::ManagedPolicy
       Properties:

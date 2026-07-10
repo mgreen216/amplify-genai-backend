@@ -20,7 +20,8 @@ custom:
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
 
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -68,7 +69,15 @@ functions:
       - http:
           path: /artifacts/get_all
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   get_artifact:
@@ -77,7 +86,15 @@ functions:
       - http:
           path: /artifacts/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   save_artifact:
     handler: service/core.save_artifact
@@ -85,7 +102,15 @@ functions:
       - http:
           path: /artifacts/save
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   delete_artifact:
     handler: service/core.delete_artifact
@@ -93,7 +118,15 @@ functions:
       - http:
           path: /artifacts/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   share_artifacts:
@@ -102,7 +135,15 @@ functions:
       - http:
           path: /artifacts/share
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
 
@@ -139,22 +180,6 @@ resources:
 
     
     
-    AmplifyArtifactsBucket:
-        Type: 'AWS::S3::Bucket'
-        DeletionPolicy: Retain
-        Properties:
-          BucketName: ${self:provider.environment.S3_ARTIFACTS_BUCKET}
-          CorsConfiguration:
-            CorsRules:
-              - AllowedOrigins: ['*']
-                AllowedMethods: ['GET', 'PUT', 'DELETE']
-                AllowedHeaders: ['*']
-                MaxAge: 3000     
-          BucketEncryption:
-            ServerSideEncryptionConfiguration:
-              - ServerSideEncryptionByDefault:
-                  SSEAlgorithm: AES256        
-
     AmplifyArtifactsTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:

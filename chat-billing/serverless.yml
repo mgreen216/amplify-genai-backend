@@ -27,6 +27,7 @@ custom:
       config: ${file(../var/${self:provider.stage}-var.yml)}
 
   stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -48,7 +49,7 @@ provider:
   versionFunctions: false
   logRetentionInDays: 365
   deploymentBucket:
-    name: ${self:service}-${sls:stage}-deployment-bucket
+    name: amplify-${self:custom.stageVars.DEP_NAME}-billing-${sls:stage}-deploy-p9k4m7n2j8
     serverSideEncryption: AES256
   
   apiGateway:
@@ -92,7 +93,15 @@ functions:
       - http:
           path: /available_models
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   update_supported_models:
@@ -104,7 +113,15 @@ functions:
       - http:
           path: /supported_models/update
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_supported_models:
     handler: service/core.get_supported_models_as_admin
@@ -115,7 +132,15 @@ functions:
       - http:
           path: /supported_models/get
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_default_models:
     handler: service/core.get_default_models
@@ -126,7 +151,15 @@ functions:
       - http:
           path: /default_models
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   
 resources:

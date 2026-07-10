@@ -15,7 +15,8 @@ plugins:
 
 
 custom:
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -23,14 +24,15 @@ custom:
     
   pythonRequirements:
     dockerizePip: true
+    dockerImage: public.ecr.aws/sam/build-python3.11:latest
 
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
   
   prune:
-  automatic: true
-  includeLayers: true
-  number: 5
+    automatic: true
+    includeLayers: true
+    number: 5
 
   deploymentBucket:
     versioning: true
@@ -106,34 +108,66 @@ functions:
       - http:
           path: assistant/remove_astp_permissions
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  create_ast:
+  create_assistant:
     handler: service/core.create_assistant
     timeout: 30
     events:
       - http:
           path: assistant/create
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  list_asts:
+  list_assistants:
     handler: service/core.list_assistants
     timeout: 30
     events:
       - http:
           path: assistant/list
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  share_ast:
+  share_assistant:
     handler: service/core.share_assistant
     timeout: 30
     events:
       - http:
           path: assistant/share
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   request_access_to_astp:
     handler: service/core.request_assistant_to_public_ast
@@ -142,47 +176,87 @@ functions:
       - http:
           path: assistant/request_access 
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  validate_ast_id:
+  validate_assistant_id:
     handler: service/core.validate_assistant_id
     timeout: 30
     events:
       - http:
           path: assistant/validate/assistant_id
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  delete_ast:
+  delete_assistant:
     handler: service/core.delete_assistant
     timeout: 30
     events:
       - http:
           path: assistant/delete
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
     
-  download_code_int_file:
+  download_code_interpreter_file:
     handler: openaiazure/assistant.get_presigned_url_code_interpreter
     events:
       - http:
           path: assistant/files/download/codeinterpreter
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   # This endpoint is mainly for local testing but doesn't have
   # a long enough timeout for use when running in AWS behind API Gateway
-  create_code_int_ast:
-    handler: openaiazure/assistant.create_code_interpreter_assistant 
+  create_code_interpreter_assistant:
+    handler: openaiazure/assistant.create_code_interpreter_assistant
     timeout: 30
     events:
       - http:
           path: assistant/create/codeinterpreter
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
   
-  chat_code_int_ast:
+  chat_code_interpreter_assistant:
     handler: openaiazure/assistant.chat_with_code_interpreter
     timeout: 300
 
@@ -190,7 +264,15 @@ functions:
       - http:
           path: assistant/chat/codeinterpreter
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   # chat_code_interpreter_assistant_url: 
   #   handler: openaiazure/assistant.chat_with_code_interpreter
@@ -198,31 +280,55 @@ functions:
   #   url: true
     
 
-  delete_ast_thread:
+  delete_assistant_thread:
     handler: openaiazure/assistant.delete_assistant_thread
     events:
       - http:
           path: assistant/openai/thread/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
-  delete_ast_open_ai:
+  delete_assistant_open_ai:
     handler: openaiazure/assistant.delete_assistant
     events:
       - http:
           path: assistant/openai/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  get_group_ast_conversations:
+  get_group_assistant_conversations:
     handler: service/core.get_group_assistant_conversations
     timeout: 30
     events:
       - http:
           path: assistant/get_group_assistant_conversations
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
   
   get_group_conversations_data:
     handler: service/core.get_group_conversations_data
@@ -231,7 +337,15 @@ functions:
       - http:
           path: assistant/get_group_conversations_data
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
           
   get_astg_system_user:
     handler: service/core.retrieve_astg_for_system_use
@@ -239,16 +353,32 @@ functions:
       - http:
           path: assistant/get/system_user
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
   
-  get_group_ast_dashboards:
+  get_group_assistant_dashboards:
     handler: service/core.get_group_assistant_dashboards
     timeout: 30
     events:
       - http:
           path: assistant/get_group_assistant_dashboards
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   save_user_rating:
     handler: service/core.save_user_rating
@@ -257,25 +387,49 @@ functions:
       - http:
           path: assistant/save_user_rating
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  lookup_ast_path:
+  lookup_assistant_path:
     handler: service/core.lookup_assistant_path
     timeout: 30
     events:
       - http:
           path: assistant/lookup
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
-  add_ast_path:
+  add_assistant_path:
     handler: service/core.add_assistant_path
     timeout: 30
     events:
       - http:
           path: assistant/add_path
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   scrape_website:
     handler: service/core.scrape_website
@@ -284,7 +438,15 @@ functions:
       - http:
           path: assistant/scrape_website
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   rescan_websites:
     handler: service/core.rescan_websites
@@ -293,7 +455,15 @@ functions:
       - http:
           path: assistant/rescan_websites
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - schedule: 
           rate: cron(0 0 * * ? *) # Daily at midnight
           enabled: true
@@ -557,36 +727,36 @@ resources:
               ProjectionType: ALL
         TableName: ${self:provider.environment.GROUP_ASSISTANT_CONVERSATIONS_DYNAMO_TABLE}
     
-    AssistantsFilesBucket:
-      Type: 'AWS::S3::Bucket'
-      Properties:
-        BucketName: ${self:provider.environment.ASSISTANTS_CODE_INTERPRETER_FILES_BUCKET_NAME}
-        CorsConfiguration:
-          CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['GET']
-              AllowedHeaders: ['*']
-              MaxAge: 3000     
-        BucketEncryption:
-          ServerSideEncryptionConfiguration:
-            - ServerSideEncryptionByDefault:
-                SSEAlgorithm: AES256
+ #   AssistantsFilesBucket:
+  #    Type: 'AWS::S3::Bucket'
+ #     Properties:
+ #       BucketName: #${self:provider.environment.ASSISTANTS_CODE_INTERPRETER_FILES_BUCKET_NAME}
+  #      CorsConfiguration:
+  ##        CorsRules:
+    #        - AllowedOrigins: ['*']
+    ##          AllowedMethods: ['GET']
+     #         AllowedHeaders: ['*']
+     #         MaxAge: 3000
+     #   BucketEncryption:
+     #     ServerSideEncryptionConfiguration:
+     #       - ServerSideEncryptionByDefault:
+     #           SSEAlgorithm: AES256
     
-    GroupAssistantConversationsBucket:
-      Type: 'AWS::S3::Bucket'
-      DeletionPolicy: Retain
-      Properties:
-        BucketName: ${self:provider.environment.S3_GROUP_ASSISTANT_CONVERSATIONS_BUCKET_NAME}
-        CorsConfiguration:
-          CorsRules:
-            - AllowedOrigins: ['*']
-              AllowedMethods: ['GET', 'PUT']
-              AllowedHeaders: ['*']
-              MaxAge: 3000     
-        BucketEncryption:
-          ServerSideEncryptionConfiguration:
-            - ServerSideEncryptionByDefault:
-                SSEAlgorithm: AES256
+   # GroupAssistantConversationsBucket:
+   #   Type: 'AWS::S3::Bucket'
+   #   DeletionPolicy: Retain
+   #   Properties:
+      #  BucketName: amp-prod-user-conversations-1753300130599
+      #  CorsConfiguration:
+      #    CorsRules:
+      #      - AllowedOrigins: ['*']
+      #        AllowedMethods: ['GET', 'PUT']
+      #        AllowedHeaders: ['*']
+      #        MaxAge: 3000
+      #  BucketEncryption:
+      #    ServerSideEncryptionConfiguration:
+      #      - ServerSideEncryptionByDefault:
+      #          SSEAlgorithm: AES256
 
     AssistantsLambdaPolicy:
       Type: 'AWS::IAM::ManagedPolicy'

@@ -10,12 +10,13 @@ plugins:
   - serverless-offline
   - serverless-python-requirements
   - serverless-prune-plugin
-  - serverless-cloudformation-changesets
+  # - serverless-cloudformation-changesets
 
 custom:
   pythonRequirements:
-    dockerizePip: non-linux
-  stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
+    dockerizePip: true
+  stageVars: ${file(../var/${self:provider.stage}-var.yml)}
+  allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   stages:
     - dev
     - staging
@@ -31,6 +32,9 @@ provider:
   region: us-east-1
   versionFunctions: false
   logRetentionInDays: 365
+  deploymentBucket:
+    name: amplify-${self:custom.stageVars.DEP_NAME}-admin-${sls:stage}-serverlessdeploymentbuck-dfvhkpbujbjt
+    serverSideEncryption: AES256
   apiGateway:
     restApiId:
       Fn::ImportValue: !Sub "${sls:stage}-RestApiId"
@@ -50,7 +54,7 @@ provider:
     APP_ARN_NAME: ${sls:stage}-amplify-app-vars
     SECRETS_ARN_NAME: ${sls:stage}-amplify-app-secrets
     LLM_ENDPOINTS_SECRETS_NAME_ARN: ${sls:stage}-openai-endpoints
-    S3_CONVERSION_OUTPUT_BUCKET_NAME: amplify-${self:custom.stageVars.DEP_NAME}-lambda-${sls:stage}-document-conversion-output
+    S3_CONVERSION_OUTPUT_BUCKET_NAME: amp-${sls:stage}-doc-conversion-output-${sls:instanceId}
     AMPLIFY_GROUPS_DYNAMODB_TABLE: amplify-${self:custom.stageVars.DEP_NAME}-object-access-${sls:stage}-amplify-groups
     IDP_PREFIX: ${self:custom.stageVars.IDP_PREFIX}
 
@@ -69,7 +73,15 @@ functions:
       - http:
           path: amplifymin/configs/update
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   get_admin_config:
@@ -79,7 +91,15 @@ functions:
       - http:
           path: amplifymin/configs
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   get_feature_flags:
@@ -89,7 +109,15 @@ functions:
       - http:
           path: amplifymin/feature_flags
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_user_app_configs:
     handler: service/core.get_user_app_configs
@@ -98,7 +126,15 @@ functions:
       - http:
           path: amplifymin/user_app_configs
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_pptx_templates:
     handler: service/core.get_pptx_for_users
@@ -107,7 +143,15 @@ functions:
       - http:
           path: amplifymin/pptx_templates
           method: get
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 
   delete_pptx_template:
@@ -117,7 +161,15 @@ functions:
       - http:
           path: amplifymin/pptx_templates/delete
           method: delete
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   upload_pptx_template:
     handler: service/core.generate_presigned_url_for_upload
@@ -126,7 +178,15 @@ functions:
       - http:
           path: amplifymin/pptx_templates/upload
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   authenticate_admin:
     handler: service/core.verify_valid_admin
@@ -135,7 +195,15 @@ functions:
       - http:
           path: amplifymin/auth
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   get_user_amplify_groups:
     handler: service/core.get_user_amplify_groups
@@ -143,7 +211,15 @@ functions:
       - http:
           path: amplifymin/amplify_groups/list
           method: get
-          cors: true       
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true       
 
   is_member_of_amp_group:
     handler: service/core.verify_is_in_amp_group
@@ -152,7 +228,15 @@ functions:
       - http:
           path: amplifymin/verify_amp_member
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   sync_assistant_admins:
     runtime: python3.11
