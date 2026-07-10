@@ -1,0 +1,194 @@
+service: canvas-integrator
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  allowedOrigin: ${env:ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
+  # Cognito user pool ID for the API Gateway authorizer.
+  # Override per stage via env var (the upstream Vanderbilt template assumed
+  # a Terraform-named pool that doesn't exist on HFU's deploy).
+  # HFU prod live pool: us-east-1_PgwOR439P (prod-amplify-users)
+  cognitoUserPoolId: ${env:COGNITO_USER_POOL_ID, 'us-east-1_PgwOR439P'}
+  pythonRequirements:
+    # cryptography ships native code; build inside Docker so the wheel
+    # matches Lambda's linux/amd64 runtime regardless of build host.
+    # Vanderbilt's other services use dockerizePip:false because they
+    # have no native deps and the project hit a Docker-on-Linux issue
+    # mid-overhaul. canvas-integrator needs Docker for cryptography.
+    dockerizePip: true
+    layer: true
+    
+provider:
+  name: aws
+  runtime: python3.10
+  stage: ${self:custom.stage}
+  region: ${self:custom.region}
+  memorySize: 256
+  timeout: 30
+  environment:
+    STAGE: ${self:custom.stage}
+    REGION: ${self:custom.region}
+    OAUTH_TABLE_NAME: ${self:custom.stage}-canvas-oauth-tokens
+    SECRET_NAME: ${self:custom.stage}-canvas-oauth-credentials
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - "arn:aws:dynamodb:${self:custom.region}:*:table/${self:provider.environment.OAUTH_TABLE_NAME}"
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - "arn:aws:secretsmanager:${self:custom.region}:*:secret:${self:provider.environment.SECRET_NAME}*"
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+            - kms:Encrypt
+          Resource: "*"
+          
+functions:
+  oauth_initiate:
+    handler: service.core.oauth_initiate
+    events:
+      - http:
+          path: /api/canvas/oauth/initiate
+          method: post
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+              
+  oauth_callback:
+    handler: service.core.oauth_callback
+    events:
+      - http:
+          path: /api/canvas/oauth/callback
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          
+  status:
+    handler: service.core.get_status
+    events:
+      - http:
+          path: /api/canvas/status
+          method: get
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+              
+  disconnect:
+    handler: service.core.disconnect
+    events:
+      - http:
+          path: /api/canvas/disconnect
+          method: delete
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+              
+  # mcp_sse route REMOVED 2026-07 (security): it was deployed with no Cognito
+  # authorizer and its handler trusted the bearer token as a raw user_id,
+  # making it an unauthenticated Canvas-connection oracle. The endpoint was a
+  # capabilities-only stub — nothing in the frontend or a working backend path
+  # called it (the llm-router reference in llm-router/service/core.py
+  # _check_canvas_context is dead code). When Canvas chat integration ships,
+  # reintroduce this behind ApiGatewayAuthorizer like every other route, and
+  # replace the user_id-as-token scheme in service/mcp.py with real JWT
+  # validation first.
+
+  canvas_api:
+    handler: service.canvas_api.handler
+    events:
+      - http:
+          path: /api/canvas/{proxy+}
+          method: any
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+resources:
+  Resources:
+    CanvasOAuthTokensTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.OAUTH_TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+          
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: ${self:custom.stage}-canvas-cognito-authorizer
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ProviderARNs:
+          - Fn::Sub: "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${self:custom.cognitoUserPoolId}"
