@@ -1,65 +1,82 @@
 # serverless-compose.yml
 services:
-  amplify-assistants:
-    path: ./amplify-assistants
-
-  llm-router:
-    path: ./llm-router
-
+  # Primary infrastructure service (must be deployed first)
   amplify-lambda:
     path: ./amplify-lambda
+
+  # Services that depend on amplify-lambda
+  llm-router:
+    path: ./llm-router
     dependsOn:
-      - amplify-assistants
+      - amplify-lambda  # Needs API Gateway exports
+
+  # Secondary infrastructure services
+  amplify-object-access:
+    path: ./object-access
+    
+  chat-billing:
+    path: ./chat-billing
+    dependsOn:
+      - amplify-lambda  # Needs chat-usage table
 
   amplify-lambda-admin:
     path: ./amplify-lambda-admin
     dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway
+      - amplify-object-access  # Needs api-keys table
+  
+  # Services that depend on amplify-lambda
+  amplify-assistants:
+    path: ./amplify-assistants
+    dependsOn:
+      - amplify-lambda  # Needs API Gateway via hard-coded references
+      - amplify-object-access  # Needs api-keys and groups tables
+      - chat-billing  # Needs billing table
+  
+  amplify-lambda-js:
+    path: ./amplify-lambda-js
+    dependsOn:
+      - amplify-lambda  # Needs API Gateway exports
+      - amplify-assistants  # Original dependency
   
   amplify-lambda-api:
     path: ./amplify-lambda-api
     dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway
+      - amplify-object-access  # Needs api-keys table
 
   amplify-lambda-artifacts:
     path: ./amplify-lambda-artifacts
     dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway and cost-calculations table
+      - amplify-object-access  # Needs api-keys table
 
-  amplify-lambda-js:
-    path: ./amplify-lambda-js
-    dependsOn:
-      - amplify-assistants
-    
   amplify-lambda-ops:
     path: ./amplify-lambda-ops
     dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway
+      - amplify-object-access  # Needs api-keys table
 
   amplify-lambda-optimizer:
     path: ./amplify-lambda-optimizer
     dependsOn:
-      - amplify-lambda
-
-  chat-billing:
-    path: ./chat-billing
-    dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway
+      - amplify-object-access  # Needs api-keys table
 
   data-disclosure:
     path: ./data-disclosure
     dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway
+      - amplify-object-access  # Needs api-keys table
+      - amplify-lambda-admin  # Needs admin-configs table
   
   amplify-embedding:
     path: ./embedding
     dependsOn:
-      - amplify-lambda
-  
-  amplify-object-access:
-    path: ./object-access
-    dependsOn:
-      - amplify-lambda
+      - amplify-lambda  # Needs API Gateway and S3 buckets
+      - amplify-object-access  # Needs api-keys and groups tables
+      - chat-billing  # Needs model-rates table
+      - amplify-lambda-admin  # Needs admin-configs table
   
 
 

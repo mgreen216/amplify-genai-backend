@@ -1,0 +1,31 @@
+# Service Name Mapping for Amplify Backend
+# Maps directory names to actual service names defined in serverless.yml files
+# This helps with deployment scripts and status checks
+
+# Format: directory-name: actual-service-name
+
+# Phase 1 - Independent Services
+llm-router: llm-router
+
+# Phase 2 - Primary Infrastructure
+amplify-lambda: amplify-${sls:stage}-lambda
+
+# Phase 3 - Secondary Infrastructure Services
+amplify-object-access: amplify-${sls:stage}-object-access
+chat-billing: amplify-${sls:stage}-chat-billing
+amplify-lambda-admin: amplify-${sls:stage}-admin
+
+# Phase 4 - Dependent Services
+amplify-assistants: amplify-${sls:stage}-assistants
+amplify-lambda-js: amplify-${sls:stage}-amplify-js
+amplify-lambda-api: amplify-${sls:stage}-api
+amplify-lambda-artifacts: amplify-${sls:stage}-artifacts
+amplify-lambda-ops: amplify-${sls:stage}-ops
+amplify-lambda-optimizer: amplify-${sls:stage}-optimizer
+data-disclosure: amplify-${sls:stage}-data-disclosure
+amplify-embedding: amplify-${sls:stage}-embedding
+
+# Notes:
+# - ${sls:stage} is replaced with the actual stage (dev/prod) during deployment
+# - CloudFormation stack names are: {service-name}-{stage}
+# - Example: amplify-prod-assistants-prod for the assistants service in prod stage
