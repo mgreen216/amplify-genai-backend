@@ -45,3 +45,17 @@ node_modules
 
 # IDE
 .idea
+# Local Python toolchain marker (runtime is pinned per-service in serverless.yml)
+.python-version
+
+# Generated Lambda invoke output
+response.json
+
+# Timestamped serverless.yml snapshots taken before manual edits.
+# Kept on disk deliberately: several amplify-lambda/*.backup* files are the
+# only surviving record of the CloudFormation logical IDs of the currently
+# deployed stack (e.g. AccountingTable), which appear in neither the live
+# file nor git history. Do not delete until that rename is reconciled.
+*.backup
+*.backup2
+*.backup-*
