@@ -33,7 +33,7 @@ ASSISTANTS_OPENAI_PROVIDER: "azure" #can be switched to 'openai' if using the Op
 EMBEDDING_MODEL_NAME: "text-embedding-ada-002" #If using Amazon Titan, set to amazon.titan-embed-text-v1
 EMBEDDING_PROVIDER: "azure" #set to 'openai' for OpenAI API or set to 'bedrock' for Amazon Bedrock
 OPENAI_PROVIDER: "azure" #can be switched to 'openai' if using the OpenAI service APIs
-QA_MODEL_NAME: "gpt-35-turbo" #If using Anthropic Haiku, set to your deployed haiku model (claude-3-haiku-20240307-v1:0 or us.anthropic.claude-3-5-haiku-20241022-v1:0)
+QA_MODEL_NAME: "gpt-35-turbo" #If using Anthropic Haiku, set to your deployed haiku model (us.anthropic.claude-haiku-4-5-20251001-v1:0)
 RAG_ASSISTANT_MODEL_ID: "gpt-35-turbo"
 
 # These Amazon Aurora RDS can be adjusted to suit your deployment needs for scaling.

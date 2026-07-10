@@ -9,12 +9,46 @@ import {extractKey} from "../datasource/datasources.js";
 const logger = getLogger("bedrock");
 const BLANK_MSG = "Intentionally Left Blank, please ignore";
 
+// Model mapping: redirect legacy/invalid model IDs to verified working models
+// All Claude 3.x models are LEGACY on Bedrock — redirect to Claude 4 family
+const MODEL_V2_TO_V1_MAPPING = {
+    // Legacy Claude 3.x -> Claude 4 Sonnet (verified working)
+    "anthropic.claude-3-sonnet-20240229-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-sonnet-20240229-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-5-sonnet-20240620-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-5-sonnet-20240620-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-5-sonnet-20241022-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-7-sonnet-20250219-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-3-7-sonnet-20250219-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "us.anthropic.claude-3-7-sonnet-20250219-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    // Legacy Haiku -> Haiku 4.5 (verified working)
+    "anthropic.claude-3-haiku-20240307-v1:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "anthropic.claude-3-haiku-20240307-v2:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "anthropic.claude-3-5-haiku-20241022-v1:0": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    // Legacy Opus -> Opus 4.5 (verified working)
+    "anthropic.claude-3-opus-20240229-v1:0": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    "us.anthropic.claude-3-opus-20240229-v1:0": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    // Claude 4 base IDs -> us. prefixed (verified working)
+    "anthropic.claude-sonnet-4-20250514-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-sonnet-4-20250514-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v1:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "anthropic.claude-sonnet-4-5-20250929-v2:0": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+};
+
 export const chatBedrock = async (chatBody, writable) => {
 
     let body = {...chatBody};
     const options = {...body.options}; 
     delete body.options; 
     const currentModel = options.model;
+    
+    // Map v2 models to v1 if needed
+    const originalModelId = currentModel.id;
+    if (MODEL_V2_TO_V1_MAPPING[currentModel.id]) {
+        currentModel.id = MODEL_V2_TO_V1_MAPPING[currentModel.id];
+        logger.info(`Mapped model from ${originalModelId} to ${currentModel.id}`);
+    }
 
     const systemPrompts = [{"text": options.prompt.trim() || BLANK_MSG}];
     if (currentModel.systemPrompt.trim()) {
@@ -66,7 +100,7 @@ export const chatBedrock = async (chatBody, writable) => {
             input.messages = sanitizedMessagesCopy;
         }
 
-        trace(options.requestId, ["Bedrock"], {modelId : currentModel.id, data: input})
+        trace(options.requestId, ["Bedrock"], {modelId : currentModel.id, originalModelId: originalModelId, data: input})
 
         const response = await client.send( new ConverseStreamCommand(input) );
         const { messageStream } = response.stream.options;
