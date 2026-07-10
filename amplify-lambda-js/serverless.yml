@@ -10,11 +10,25 @@ frameworkVersion: '3'
 plugins: []
 
 custom:
-  serverless-offline: 
+  serverless-offline:
     custom:
-      config: ${file(../var/${self:provider.stage}-var.yml)} 
+      config: ${file(../var/${self:provider.stage}-var.yml)}
   stageVars: ${file(../var/${self:provider.stage}-var.yml)}
   allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
+
+  # Physical id of the shared TOKEN authorizer `amplify-jwt-authorizer` on the
+  # api.hfu-amplify.org REST API (qfgrhljoh0). It is NOT owned by this stack and
+  # has no CloudFormation export, so it must be referenced by literal id.
+  #
+  # The two billing endpoints below (api-key-user-cost, list-all-user-mtd-costs)
+  # were attached to it MANUALLY in production -- they expose per-user and
+  # all-user cost data and must stay authenticated. Without the authorizer:
+  # blocks below, the template declared AuthorizationType: NONE, so a deploy
+  # would STRIP that protection (confirmed via drift detection 2026-07-10).
+  #
+  # If the authorizer is ever recreated its id changes and this must be updated.
+  # Verify with: aws apigateway get-authorizers --rest-api-id qfgrhljoh0
+  jwtAuthorizerId: prtc8p
 
   cf-changesets:
     requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
@@ -174,6 +188,11 @@ functions:
       - http:
           path: billing/api-key-user-cost
           method: post
+          # Matches production: this endpoint is protected by the shared JWT
+          # authorizer. See custom.jwtAuthorizerId note.
+          authorizer:
+            type: CUSTOM
+            authorizerId: ${self:custom.jwtAuthorizerId}
           cors:
             origin: ${self:custom.allowedOrigin}
             headers:
@@ -191,6 +210,11 @@ functions:
       - http:
           path: billing/list-all-user-mtd-costs
           method: post
+          # Matches production: protected by the shared JWT authorizer.
+          # See custom.jwtAuthorizerId note.
+          authorizer:
+            type: CUSTOM
+            authorizerId: ${self:custom.jwtAuthorizerId}
           cors:
             origin: ${self:custom.allowedOrigin}
             headers:
@@ -321,6 +345,12 @@ resources:
         TableName: ${self:provider.environment.DATASOURCE_REGISTRY_DYNAMO_TABLE}
     CostCalculationsDynamoDbTable:
       Type: 'AWS::DynamoDB::Table'
+      # This table was deleted out-of-band once (restored 2026-07-10) because
+      # a second stack (amplify-lambda) also declared it and a failed deploy
+      # took it down. Retain on delete/replace so a stack update or teardown
+      # can never destroy billing data again.
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BillingMode: PAY_PER_REQUEST
         PointInTimeRecoverySpecification:
@@ -349,6 +379,8 @@ resources:
         TableName: ${self:provider.environment.COST_CALCULATIONS_DYNAMO_TABLE}
     HistoryCostCalculationsDynamoDbTable:
       Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BillingMode: PAY_PER_REQUEST
         PointInTimeRecoverySpecification:
