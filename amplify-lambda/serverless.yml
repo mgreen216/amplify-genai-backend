@@ -861,377 +861,294 @@ resources:
               
     UserStateDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
           - AttributeName: user
             AttributeType: S
-          - AttributeName: key_object
+          - AttributeName: name
             AttributeType: S
         KeySchema:
-          - AttributeName: user
+          - AttributeName: id
             KeyType: HASH
-          - AttributeName: key_object
-            KeyType: RANGE
-        ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
-        TableName: ${self:provider.environment.DYNAMODB_TABLE}
-    
+        GlobalSecondaryIndexes:
+          - IndexName: UserIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: UserNameIndex
+            KeySchema:
+              - AttributeName: user
+                KeyType: HASH
+              - AttributeName: name
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
     AssistantsDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.ASSISTANTS_DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
           - AttributeName: user
             AttributeType: S
-          - AttributeName: assistantId
-            AttributeType: S
-          - AttributeName: createdAt
-            AttributeType: S
-          - AttributeName: type
+          - AttributeName: name
             AttributeType: S
         KeySchema:
-          - AttributeName: user
+          - AttributeName: id
             KeyType: HASH
-          - AttributeName: assistantId
-            KeyType: RANGE
         GlobalSecondaryIndexes:
-          - IndexName: createdAt-index
+          - IndexName: UserIndex
             KeySchema:
               - AttributeName: user
                 KeyType: HASH
-              - AttributeName: createdAt
-                KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: typeIndex
+          - IndexName: UserNameIndex
             KeySchema:
               - AttributeName: user
                 KeyType: HASH
-              - AttributeName: type
+              - AttributeName: name
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        StreamSpecification:
-          StreamViewType: KEYS_ONLY  # We'll configure KEYS_ONLY to reduce costs
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     UserFilesDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.FILES_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
-          - AttributeName: user
-            AttributeType: S
           - AttributeName: id
+            AttributeType: S
+          - AttributeName: createdBy
             AttributeType: S
           - AttributeName: createdAt
             AttributeType: S
           - AttributeName: type
             AttributeType: S
-          - AttributeName: knowledgeBase
+          - AttributeName: name
             AttributeType: S
         KeySchema:
-          - AttributeName: user
-            KeyType: HASH
           - AttributeName: id
-            KeyType: RANGE
-        LocalSecondaryIndexes:
-          - IndexName: createdAtIndex
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: createdBy
             KeySchema:
-              - AttributeName: user
+              - AttributeName: createdBy
+                KeyType: HASH
+              - AttributeName: id
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: createdByAndAt
+            KeySchema:
+              - AttributeName: createdBy
                 KeyType: HASH
               - AttributeName: createdAt
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-        GlobalSecondaryIndexes:
-          - IndexName: typeIndex
+          - IndexName: createdByAndType
             KeySchema:
-              - AttributeName: user
+              - AttributeName: createdBy
                 KeyType: HASH
               - AttributeName: type
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: knowledgeBaseIndex
+          - IndexName: createdByAndName
             KeySchema:
-              - AttributeName: user
+              - AttributeName: createdBy
                 KeyType: HASH
-              - AttributeName: knowledgeBase
+              - AttributeName: name
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        StreamSpecification:
-          StreamViewType: KEYS_ONLY
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-  
+
     UserTagsDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.USER_TAGS_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
           - AttributeName: user
-            AttributeType: S
-          - AttributeName: tag
             AttributeType: S
         KeySchema:
           - AttributeName: user
             KeyType: HASH
-          - AttributeName: tag
-            KeyType: RANGE
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     HashFilesDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.HASH_FILES_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
-          - AttributeName: hash
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: textLocationKey
             AttributeType: S
         KeySchema:
-          - AttributeName: hash
+          - AttributeName: id
             KeyType: HASH
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+        GlobalSecondaryIndexes:
+          - IndexName: TextLocationIndex
+            KeySchema:
+              - AttributeName: textLocationKey
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
     AccountingChargesDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.ACCOUNTING_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
           - AttributeName: id
-            AttributeType: S
-          - AttributeName: timestamp
-            AttributeType: S
-          - AttributeName: model
-            AttributeType: S
-          - AttributeName: accountId
             AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
-          - AttributeName: timestamp
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: ModelTimestampIndex
-            KeySchema:
-              - AttributeName: model
-                KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: AccountIdTimestampIndex
-            KeySchema:
-              - AttributeName: accountId
-                KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     AccountsDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
           - AttributeName: user
             AttributeType: S
         KeySchema:
           - AttributeName: user
             KeyType: HASH
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     AccountingChatUsageDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.CHAT_USAGE_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
-          - AttributeName: timestamp
-            AttributeType: S
           - AttributeName: user
             AttributeType: S
-          - AttributeName: model
-            AttributeType: S
-          - AttributeName: accountId
+          - AttributeName: time
             AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
-          - AttributeName: timestamp
-            KeyType: RANGE
         GlobalSecondaryIndexes:
-          - IndexName: UserTimestampIndex
+          - IndexName: UserUsageTimeIndex
             KeySchema:
               - AttributeName: user
                 KeyType: HASH
-              - AttributeName: timestamp
+              - AttributeName: time
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: ModelTimestampIndex
+          - IndexName: DateIndex
             KeySchema:
-              - AttributeName: model
+              - AttributeName: time
                 KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: AccountIdTimestampIndex
-            KeySchema:
-              - AttributeName: accountId
-                KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
-    
+
     AccountingChatUsageArchiveDynamoDbTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.CHAT_USAGE_ARCHIVE_DYNAMO_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
-          - AttributeName: timestamp
-            AttributeType: S
           - AttributeName: user
             AttributeType: S
-          - AttributeName: model
-            AttributeType: S
-          - AttributeName: accountId
+          - AttributeName: time
             AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
-          - AttributeName: timestamp
-            KeyType: RANGE
         GlobalSecondaryIndexes:
-          - IndexName: UserTimestampIndex
+          - IndexName: UserUsageTimeIndex
             KeySchema:
               - AttributeName: user
                 KeyType: HASH
-              - AttributeName: timestamp
+              - AttributeName: time
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: ModelTimestampIndex
+          - IndexName: DateIndex
             KeySchema:
-              - AttributeName: model
+              - AttributeName: time
                 KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: AccountIdTimestampIndex
-            KeySchema:
-              - AttributeName: accountId
-                KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     # CostCalculationsTable intentionally NOT declared here.
     #
     # The table `${COST_CALCULATIONS_DYNAMO_TABLE}` is owned by the
@@ -1255,40 +1172,41 @@ resources:
 
     ConversationMetadataTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         TableName: ${self:provider.environment.CONVERSATION_METADATA_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: false
         AttributeDefinitions:
-          - AttributeName: user
+          - AttributeName: user_id
             AttributeType: S
-          - AttributeName: conversationId
+          - AttributeName: conversation_id
             AttributeType: S
-          - AttributeName: lastModified
-            AttributeType: S
+          - AttributeName: last_modified
+            AttributeType: N
         KeySchema:
-          - AttributeName: user
+          - AttributeName: user_id
             KeyType: HASH
-          - AttributeName: conversationId
+          - AttributeName: conversation_id
             KeyType: RANGE
-        LocalSecondaryIndexes:
-          - IndexName: LastModifiedIndex
+        GlobalSecondaryIndexes:
+          - IndexName: TimestampIndex
             KeySchema:
-              - AttributeName: user
+              - AttributeName: user_id
                 KeyType: HASH
-              - AttributeName: lastModified
+              - AttributeName: last_modified
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+
     AccessLogsBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}
         PublicAccessBlockConfiguration:
@@ -1304,6 +1222,8 @@ resources:
     
     StateBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_BUCKET_NAME}
         BucketEncryption:
@@ -1340,6 +1260,8 @@ resources:
     
     ConversionInputBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}
         BucketEncryption:
@@ -1373,6 +1295,8 @@ resources:
     
     ConversionOutputBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}
         BucketEncryption:
@@ -1406,6 +1330,8 @@ resources:
     
     AssistantUploadsBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_ASSISTANT_UPLOADS_BUCKET_NAME}
         BucketEncryption:
@@ -1439,6 +1365,8 @@ resources:
     
     ImageInputBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}
         BucketEncryption:
@@ -1472,6 +1400,8 @@ resources:
     
     RagInputBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}
         BucketEncryption:
@@ -1505,6 +1435,8 @@ resources:
     
     RagChunksBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_RAG_CHUNKS_BUCKET_NAME}
         BucketEncryption:
@@ -1525,6 +1457,8 @@ resources:
     
     FileTextBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}
         BucketEncryption:
@@ -1545,6 +1479,8 @@ resources:
     
     remoteConversationsBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_CONVERSATIONS_BUCKET_NAME}
         BucketEncryption:
@@ -1565,6 +1501,8 @@ resources:
     
     ZipFileBucket:
       Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BucketName: ${self:provider.environment.S3_ZIP_FILE_BUCKET_NAME}
         BucketEncryption:
