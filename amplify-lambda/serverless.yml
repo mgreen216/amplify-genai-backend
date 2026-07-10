@@ -1215,25 +1215,27 @@ resources:
         SSESpecification:
           SSEEnabled: true
     
-    CostCalculationsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.COST_CALCULATIONS_DYNAMO_TABLE}
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        BillingMode: PROVISIONED
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: false
-        SSESpecification:
-          SSEEnabled: true
-    
+    # CostCalculationsTable intentionally NOT declared here.
+    #
+    # The table `${COST_CALCULATIONS_DYNAMO_TABLE}` is owned by the
+    # amplify-lambda-js stack, where it is declared as
+    # CostCalculationsDynamoDbTable with a composite key (id HASH +
+    # accountInfo RANGE), a record-type-user-index GSI, PAY_PER_REQUEST
+    # billing, and PITR enabled.
+    #
+    # This service previously declared the same physical TableName with an
+    # incompatible schema (id-only HASH key, no GSI, PROVISIONED 5/5, PITR
+    # off). Two stacks claiming one physical table is what made the
+    # 2026-04-06 prod deploy fail -- CostCalculationsTable appears in that
+    # stack's "failed to create" list, and the table has been missing ever
+    # since (CloudFormation drift on amplify-prod-amplify-js-prod reports
+    # CostCalculationsDynamoDbTable as DELETED).
+    #
+    # The COST_CALCULATIONS_DYNAMO_TABLE env var above is retained: this
+    # service's Lambdas still read and write the table, and the IAM policy
+    # grants DynamoDB actions on Resource "*". Only the resource
+    # declaration is removed.
+
     ConversationMetadataTable:
       Type: AWS::DynamoDB::Table
       Properties:
