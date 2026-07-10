@@ -8,8 +8,11 @@ provider:
   stackName: ${self:service}-${self:provider.stage}
   versionFunctions: false
   apiGateway:
-    restApiId: "1y2q5khrvc"
-    restApiRootResourceId: "y2y98zvxq5"
+    restApiId:
+      Fn::ImportValue: !Sub "${sls:stage}-RestApiId"
+    restApiRootResourceId:
+      Fn::ImportValue: !Sub "${sls:stage}-RestApiRootResourceId"
+
   iam:
     role:
       statements:
@@ -41,23 +44,31 @@ provider:
 functions:
   proxy:
     handler: service.core.handler
-    memorySize: 512
+    memorySize: 3008
     timeout: 300
     events:
       - http:
-          path: proxy/llm
+          path: ${self:provider.stage}/proxy/llm
           method: post
-          cors: true
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
           authorizer: aws_iam
 
 plugins:
   - serverless-python-requirements
 
 custom:
+  allowedOrigin: ${env:ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   pythonRequirements:
     dockerizePip: false
-    layer: true
-    
+
 resources:
   Resources:
     LLMApiKeysSecret:

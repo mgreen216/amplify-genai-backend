@@ -5,11 +5,17 @@ import logging
 from typing import Dict, Any, Optional
 import requests
 from datetime import datetime
+import time
 
 # Import provider-specific clients
-import google.generativeai as genai
-import openai
 from botocore.exceptions import ClientError
+
+# Import caching layer
+try:
+    from .cache import llm_cache
+except ImportError:
+    logger.warning("Cache module not available, running without caching")
+    llm_cache = None
 
 # Set up logging
 logger = logging.getLogger()
@@ -57,6 +63,36 @@ class LLMRouter:
         except Exception as e:
             logger.error(f"Error tracking usage: {str(e)}")
     
+    def _check_canvas_context(self, messages: list, user_id: str) -> Optional[Dict[str, Any]]:
+        """Check if Canvas context is needed and get MCP configuration"""
+        # Keywords that suggest Canvas-related questions
+        canvas_keywords = ['assignment', 'course', 'grade', 'canvas', 'homework', 
+                          'class', 'announcement', 'due date', 'submission']
+        
+        # Check last user message for Canvas keywords
+        if messages:
+            last_message = messages[-1].get('content', '').lower()
+            if any(keyword in last_message for keyword in canvas_keywords):
+                # Check if user has Canvas connected
+                try:
+                    # Import here to avoid circular dependency
+                    from boto3.dynamodb.conditions import Key
+                    oauth_table = dynamodb.Table(f"{STAGE}-canvas-oauth-tokens")
+                    response = oauth_table.get_item(Key={'user_id': user_id})
+                    
+                    if 'Item' in response:
+                        # User has Canvas connected, return MCP configuration
+                        return {
+                            "type": "url",
+                            "url": f"https://api.hfu-amplify.org/{STAGE}/api/mcp/canvas/sse",
+                            "name": "canvas_tools",
+                            "authorization_token": user_id  # Use user_id as token for now
+                        }
+                except Exception as e:
+                    logger.error(f"Error checking Canvas status: {str(e)}")
+        
+        return None
+    
     def route_to_bedrock(self, model: str, messages: list, user_id: str) -> Dict[str, Any]:
         """Route request to AWS Bedrock"""
         try:
@@ -65,21 +101,91 @@ class LLMRouter:
             
             # Map model names to Bedrock model IDs
             model_map = {
-                "claude-3-sonnet": "anthropic.claude-3-sonnet-20240229-v1:0",
-                "claude-3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
-                "mistral-large": "mistral.mistral-large-2402-v1:0"
+                # Claude models - Frontend names and API names
+                # All Claude 3.x models are LEGACY on Bedrock — remap to Claude 4 family
+                "Claude Haiku 4.5": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+                "Claude 3 Haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",  # Backward compat
+                "Claude 3.5 Haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",  # Backward compat
+                "Claude 3 Sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # 3.x Legacy -> Sonnet 4
+                "Claude 3.5 Sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # 3.5 V2 Legacy -> Sonnet 4
+                "Claude 3.5 Sonnet V2": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Legacy -> Sonnet 4
+                "Claude 3.7 Sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # 3.7 Legacy -> Sonnet 4
+                "Claude 4 Sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "Claude 4.5 Sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "Claude 4.6 Sonnet": "us.anthropic.claude-sonnet-4-6",
+                "claude-haiku-4.5": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+                "claude-3-haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",  # Backward compat
+                "claude-3.5-haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",  # Backward compat
+                "claude-3-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # 3.x Legacy -> Sonnet 4
+                "claude-3.5-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Legacy -> Sonnet 4
+                "claude-3.7-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",  # Legacy -> Sonnet 4
+                "claude-4-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "claude-4.5-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "claude-4.6-sonnet": "us.anthropic.claude-sonnet-4-6",
+                
+                # Mistral models - Frontend names and API names
+                "Mistral Large": "mistral.mistral-large-2402-v1:0",
+                "Mistral 7B Instruct": "mistral.mistral-7b-instruct-v0:2",
+                "Mixtral 8x7B Instruct": "mistral.mixtral-8x7b-instruct-v0:1",
+                "mistral-large": "mistral.mistral-large-2402-v1:0",
+                "mistral-7b": "mistral.mistral-7b-instruct-v0:2",
+                "mixtral-8x7b": "mistral.mixtral-8x7b-instruct-v0:1",
+                "mistral-small": "mistral.mistral-small-2402-v1:0",
+                
+                # Amazon Titan models - Frontend names and API names
+                "Titan Text G1 - Lite": "amazon.titan-text-lite-v1",
+                "Titan Text G1 - Express": "amazon.titan-text-express-v1",
+                "titan-lite": "amazon.titan-text-lite-v1",
+                "titan-express": "amazon.titan-text-express-v1"
             }
             
             bedrock_model = model_map.get(model, model)
             
+            # Check for Canvas context for Claude models
+            mcp_config = None
+            if "claude" in bedrock_model and "claude-2" not in bedrock_model:
+                mcp_config = self._check_canvas_context(messages, user_id)
+            
             # Prepare request based on model provider
-            if "claude" in bedrock_model:
+            if "claude" in bedrock_model and "claude-2" not in bedrock_model:
+                # Claude 3 uses messages format
+                body = {
+                    "messages": messages,
+                    "max_tokens": 4096,
+                    "temperature": 0.7,
+                    "anthropic_version": "bedrock-2023-05-31"
+                }
+                
+                # Add MCP configuration if Canvas context is needed
+                if mcp_config:
+                    body["mcp_servers"] = [mcp_config]
+                    logger.info(f"Added Canvas MCP configuration for user {user_id}")
+            elif "claude" in bedrock_model:
+                # Claude 2 uses prompt format
                 body = {
                     "prompt": f"\n\nHuman: {prompt}\n\nAssistant:",
                     "max_tokens_to_sample": 4096,
                     "temperature": 0.7
                 }
+            elif "titan" in bedrock_model:
+                # Amazon Titan format
+                body = {
+                    "inputText": prompt,
+                    "textGenerationConfig": {
+                        "maxTokenCount": 4096,
+                        "temperature": 0.7,
+                        "topP": 0.9
+                    }
+                }
+            elif "mistral" in bedrock_model or "mixtral" in bedrock_model:
+                # Mistral/Mixtral format
+                body = {
+                    "prompt": f"<s>[INST] {prompt} [/INST]",
+                    "max_tokens": 4096,
+                    "temperature": 0.7
+                }
             else:
+                # Generic format
                 body = {
                     "prompt": prompt,
                     "max_tokens": 4096,
@@ -95,9 +201,22 @@ class LLMRouter:
             response_body = json.loads(response['body'].read())
             
             # Extract response based on model
-            if "claude" in bedrock_model:
+            if "claude" in bedrock_model and "claude-2" not in bedrock_model:
+                # Claude 3/4 response format
+                content = response_body.get('content', [{}])[0].get('text', '')
+            elif "claude-2" in bedrock_model:
+                # Claude 2 response format
                 content = response_body.get('completion', '')
+            elif "titan" in bedrock_model:
+                # Titan response format
+                results = response_body.get('results', [])
+                content = results[0].get('outputText', '') if results else ''
+            elif "mistral" in bedrock_model or "mixtral" in bedrock_model:
+                # Mistral/Mixtral response format
+                outputs = response_body.get('outputs', [])
+                content = outputs[0].get('text', '') if outputs else ''
             else:
+                # Generic format
                 content = response_body.get('outputs', [{}])[0].get('text', '')
             
             # Track usage (approximate)
@@ -120,33 +239,59 @@ class LLMRouter:
             }
     
     def route_to_gemini(self, model: str, messages: list, user_id: str) -> Dict[str, Any]:
-        """Route request to Google Gemini"""
+        """Route request to Google Gemini using REST API"""
         try:
             if not self.api_keys.get('gemini_api_key'):
                 raise ValueError("Gemini API key not configured")
             
-            genai.configure(api_key=self.api_keys['gemini_api_key'])
-            
-            # Map model names
+            # Map model names to current Gemini models (match frontend dropdown)
+            # Gemini 1.5 models have been upgraded to 2.5
             model_map = {
-                "gemini-pro": "gemini-pro",
-                "gemini-pro-vision": "gemini-pro-vision"
+                "Gemini 1.5 Pro": "gemini-2.5-pro",
+                "Gemini 1.5 Flash": "gemini-2.5-flash",
+                "gemini-pro": "gemini-2.5-pro",
+                "gemini-1.5-pro": "gemini-2.5-pro",
+                "gemini-1.5-flash": "gemini-2.5-flash",
+                "gemini-flash": "gemini-2.5-flash"
             }
             
-            gemini_model = genai.GenerativeModel(model_map.get(model, "gemini-pro"))
+            gemini_model = model_map.get(model, "gemini-pro")
+            api_key = self.api_keys['gemini_api_key']
+            
+            # Gemini REST API endpoint - all models now use v1beta
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
             
             # Convert messages to Gemini format
-            prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+            contents = []
+            for msg in messages:
+                contents.append({
+                    "role": "user" if msg['role'] == "user" else "model",
+                    "parts": [{"text": msg['content']}]
+                })
             
-            response = gemini_model.generate_content(prompt)
+            # Prepare request payload
+            payload = {
+                "contents": contents,
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 4096
+                }
+            }
             
-            # Track usage
-            tokens = len(response.text.split()) * 1.3
+            # Make request
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['candidates'][0]['content']['parts'][0]['text']
+            
+            # Track usage (approximate)
+            tokens = len(content.split()) * 1.3
             self._track_usage(user_id, "gemini", model, int(tokens))
             
             return {
                 "success": True,
-                "response": response.text,
+                "response": content,
                 "model": model,
                 "provider": "gemini"
             }
@@ -160,15 +305,17 @@ class LLMRouter:
             }
     
     def route_to_openai(self, model: str, messages: list, user_id: str) -> Dict[str, Any]:
-        """Route request to OpenAI"""
+        """Route request to OpenAI using REST API"""
         try:
             if not self.api_keys.get('openai_api_key'):
                 raise ValueError("OpenAI API key not configured")
             
-            openai.api_key = self.api_keys['openai_api_key']
+            api_key = self.api_keys['openai_api_key']
             
-            # Map model names
+            # Map model names (match frontend dropdown)
             model_map = {
+                "GPT-4": "gpt-4",
+                "GPT-3.5 Turbo": "gpt-3.5-turbo",
                 "gpt-4": "gpt-4",
                 "gpt-4-turbo": "gpt-4-turbo-preview",
                 "gpt-3.5-turbo": "gpt-3.5-turbo"
@@ -176,18 +323,31 @@ class LLMRouter:
             
             openai_model = model_map.get(model, "gpt-4")
             
-            response = openai.ChatCompletion.create(
-                model=openai_model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=4096
-            )
+            # OpenAI API endpoint
+            url = "https://api.openai.com/v1/chat/completions"
             
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": openai_model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 4096
+            }
+            
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+            usage = result.get('usage', {})
+            total_tokens = usage.get('total_tokens', 0)
             
             # Track usage
-            self._track_usage(user_id, "openai", openai_model, tokens)
+            self._track_usage(user_id, "openai", openai_model, total_tokens)
             
             return {
                 "success": True,
@@ -195,9 +355,9 @@ class LLMRouter:
                 "model": openai_model,
                 "provider": "openai",
                 "usage": {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": tokens
+                    "prompt_tokens": usage.get('prompt_tokens', 0),
+                    "completion_tokens": usage.get('completion_tokens', 0),
+                    "total_tokens": total_tokens
                 }
             }
             
@@ -234,10 +394,22 @@ def handler(event, context):
         body = json.loads(event.get('body', '{}'))
         
         # Extract parameters
-        provider = body.get('provider', 'bedrock')
-        model = body.get('model', 'claude-3-sonnet')
+        model = body.get('model', 'Claude 3.5 Sonnet')  # Default to Claude 3.5 Sonnet
         messages = body.get('messages', [])
         prompt = body.get('prompt')
+        
+        # Determine provider based on model name if not specified
+        provider = body.get('provider')
+        if not provider:
+            # Auto-detect provider based on model name
+            if model.startswith('Claude') or model.startswith('claude') or model.startswith('Mistral') or model.startswith('mistral') or model.startswith('titan'):
+                provider = 'bedrock'
+            elif model.startswith('GPT') or model.startswith('gpt'):
+                provider = 'openai'
+            elif model.startswith('Gemini') or model.startswith('gemini'):
+                provider = 'gemini'
+            else:
+                provider = 'bedrock'  # Default to bedrock
         
         # Convert single prompt to messages format
         if prompt and not messages:
