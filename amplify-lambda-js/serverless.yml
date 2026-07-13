@@ -163,45 +163,24 @@ functions:
       - schedule:
           rate: cron(0 0 * * ? *) # trigger at midnight UTC every day
 
-  # provides real-time usage information via API gateway
-  mtd_cost_reporter:
-    handler: billing/mtd.handler
-    memorySize: 128
-    events:
-      - http:
-          path: billing/mtd-cost
-          method: post
-          cors:
-            origin: ${self:custom.allowedOrigin}
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-            allowCredentials: true
-
-  api_key_user_cost:
-    handler: billing/mtd.apiKeyUserCostHandler
-    memorySize: 128
-    events:
-      - http:
-          path: billing/api-key-user-cost
-          method: post
-          # Matches production: this endpoint is protected by the shared JWT
-          # authorizer. See custom.jwtAuthorizerId note.
-          authorizer:
-            type: CUSTOM
-            authorizerId: ${self:custom.jwtAuthorizerId}
-          cors:
-            origin: ${self:custom.allowedOrigin}
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-            allowCredentials: true
+  # mtd_cost_reporter (POST /billing/mtd-cost) and api_key_user_cost
+  # (POST /billing/api-key-user-cost) REMOVED 2026-07-10 (security).
+  #
+  # Both were an authenticated IDOR: their handlers returned cost data keyed
+  # by an attacker-supplied body.data.email with no check that it matched the
+  # caller (params.user), so any logged-in user could read any user's spend.
+  # Neither had a live caller (the frontend doMtdCostOp was dead code; nothing
+  # called api-key-user-cost). Removed rather than retrofitted -- the safe
+  # pattern (params.user + admin gate) remains in list_all_user_mtd_costs
+  # below. Handlers deleted from billing/mtd.js.
+  #
+  # Removing these deletes their methods from the shared gateway (qfgrhljoh0)
+  # that this stack attaches to -- scoped to this stack's own resources.
+  #
+  # NOTE: the UI's per-user cost display calls op /list-user-mtd-costs, which
+  # still has no backend route (so the display 404s -> $0). Implementing a safe
+  # token-derived handler returning the full UserMtdCosts shape is separate
+  # feature work, not part of this security removal.
 
   list_all_user_mtd_costs:
     handler: billing/mtd.listAllUserMtdCostsHandler
