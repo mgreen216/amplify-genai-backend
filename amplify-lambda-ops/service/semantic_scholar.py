@@ -91,9 +91,14 @@ def _format_paper(p: dict) -> dict:
 @validated(op="search")
 def search(event, context, current_user, name, data):
     """
-    Lambda handler. `data` is the validated JSON body. Returns:
+    Lambda handler. Returns:
       { success: bool, data: { query, count, results: [...] } }
     """
+    # The @validated decorator passes the full request body; the caller's params
+    # live under the "data" key (same convention as every handler in core.py,
+    # e.g. `data = data['data']`). Without this unwrap, data.get("query") was
+    # always None and the op returned "query is required" for every request.
+    data = data['data']
     query = (data.get("query") or "").strip()
     limit = int(data.get("limit") or 5)
     limit = max(1, min(MAX_LIMIT, limit))

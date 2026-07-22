@@ -282,7 +282,13 @@ def check_data_disclosure_decision(event, context, current_user, name, data):
 @validated(op="save_data_disclosure_decision")
 def save_data_disclosure_decision(event, context, current_user, name, data):
     data = data['data']
-    email = data.get("email")
+    # SECURITY: identity comes from the verified token, NOT the request body.
+    # This previously read data.get("email"), letting any authenticated user
+    # write/forge another user's FERPA data-disclosure consent by supplying a
+    # victim's email. The read path (check_data_disclosure_decision) keys on
+    # current_user, so a forged record would be served back to the victim.
+    # Key the write on current_user to match the read path and close the IDOR.
+    email = current_user
     accepted_data_disclosure = data.get("acceptedDataDisclosure")
 
     if not isinstance(email, str) or accepted_data_disclosure not in (True, False):
