@@ -19,10 +19,34 @@ const historyCostDynamoTableName = process.env.HISTORY_COST_CALCULATIONS_DYNAMO_
 // rather than retrofitted. The safe pattern remains below in
 // listAllUserMtdCostsHandler (params.user + admin gate).
 //
-// The UI's own per-user cost call (op /list-user-mtd-costs) still has no backend
-// route -- implementing a token-derived handler that returns the full
-// UserMtdCosts shape (totalCost, hourlyCost[24], accounts[]) is separate feature
-// work, tracked apart from this security removal.
+// The UI's own per-user cost call (op /list-user-mtd-costs) is now served by
+// listUserMtdCostsHandler at the bottom of this file. It follows the same safe
+// pattern: the identity it reports on comes ONLY from params.user (the verified
+// token), never from the request body, and it takes no email/user input at all.
+
+// Number of Query pages we will follow for a single user's cost rows. One row
+// exists per accountInfo (`<coa>#<apiKeyOr'NA'>`); a page holds ~1MB of them, so
+// this is a runaway guard, not a real limit.
+const MAX_USER_COST_QUERY_PAGES = 10;
+
+const toNumber = (value) => {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+// hourlyCost is written by common/accounting.js as a 24-element list indexed by
+// UTC hour, and re-zeroed nightly by billing/reset.js. Older rows may predate
+// the field or hold a short/garbage list, so always normalize to exactly 24
+// numbers -- the frontend indexes hourlyCost[utcHour] directly.
+const normalizeHourlyCost = (raw) => {
+    const hourly = new Array(24).fill(0);
+    if (Array.isArray(raw)) {
+        for (let hour = 0; hour < 24; hour++) {
+            hourly[hour] = toNumber(raw[hour]);
+        }
+    }
+    return hourly;
+};
 
 export const listAllUserMtdCostsHandler = async (event, context, callback) => {
     const startTime = Date.now();
@@ -321,11 +345,214 @@ export const listAllUserMtdCostsHandler = async (event, context, callback) => {
         return response;
     } catch (error) {
         const totalDuration = Date.now() - startTime;
-        logger.error("=== LIST ALL USER MTD COSTS REQUEST FAILED ===", { 
-            error: error.message, 
+        logger.error("=== LIST ALL USER MTD COSTS REQUEST FAILED ===", {
+            error: error.message,
             stack: error.stack,
             totalDuration,
             requestedBy: user || 'unknown'
+        });
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Internal server error' }),
+        };
+    }
+};
+
+/**
+ * POST /billing/list-user-mtd-costs
+ *
+ * Returns the CALLER'S OWN month-to-date cost breakdown, in the shape the
+ * frontend's UserMtdCosts interface expects (services/mtdCostService.ts).
+ *
+ * SECURITY: the user whose costs are returned is derived ONLY from
+ * params.user, which extractParams sets from the verified Cognito access
+ * token (or the API-key record). The request body is never read -- the
+ * frontend sends `data: {}` and this handler must keep it that way. Two
+ * endpoints in this file were removed in 2026-07 for taking the target email
+ * from body.data.email (authenticated IDOR); do not reintroduce that pattern.
+ * There is deliberately no way to ask this endpoint about another user --
+ * cross-user reads live in listAllUserMtdCostsHandler behind the admin gate.
+ *
+ * No-data is a success case: a user who has never run a chat has no rows in
+ * the cost table, and the UI treats a response without `.email` as a failure,
+ * so we return zeros with the caller's email rather than a 404.
+ */
+/**
+ * Mask the API-key segment of an accountInfo sort key before returning it.
+ *
+ * common/accounting.js writes accountInfo as `${coa}#${accessToken}` where
+ * accessToken is the caller's RAW `amp-...` API key. Echoing that back in an
+ * API response leaks a live credential into the browser, logs, and any cached
+ * payload. We keep the COA (which the UI uses to attribute cost per account)
+ * and replace the key with a stable, non-secret suffix hint.
+ */
+const redactAccountInfo = (raw) => {
+    if (typeof raw !== 'string' || raw.length === 0) return 'Unknown Account';
+    const hash = raw.indexOf('#');
+    if (hash === -1) return raw;                       // no key segment present
+    const coa = raw.slice(0, hash);
+    const key = raw.slice(hash + 1);
+    if (!key || key === 'NA') return `${coa}#NA`;      // no API key on this row
+    // Keep only a short non-reversible tail so the UI can distinguish keys.
+    const tail = key.slice(-4);
+    return `${coa}#amp-***${tail}`;
+};
+
+export const listUserMtdCostsHandler = async (event, context, callback) => {
+    const startTime = Date.now();
+    let requestUser = 'unknown'; // kept in outer scope so the catch can log it
+    logger.info("=== LIST USER MTD COSTS REQUEST STARTED ===");
+
+    try {
+        const params = await extractParams(event);
+
+        if (params.statusCode) {
+            logger.error("Failed to extract params", { statusCode: params.statusCode });
+            return params; // This is an error response from extractParams
+        }
+
+        // Identity comes from the token ONLY. body is intentionally ignored.
+        const user = params.user;
+
+        if (!user || typeof user !== 'string') {
+            logger.error("No usable user identity on verified request");
+            return {
+                statusCode: 401,
+                body: JSON.stringify({ error: 'Unauthorized' }),
+            };
+        }
+        requestUser = user;
+
+        if (!costDynamoTableName) {
+            logger.error("COST_CALCULATIONS_DYNAMO_TABLE environment variable is not set");
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'Server configuration error' }),
+            };
+        }
+
+        // The cost table is keyed id(HASH) + accountInfo(RANGE) and accounting.js
+        // writes id = the same token-derived user string, so a partition Query on
+        // id returns exactly this caller's rows -- one per account/API key. No
+        // scan, and no way to reach another partition.
+        const items = [];
+        let lastEvaluatedKey = null;
+        let pagesFetched = 0;
+
+        do {
+            const queryParams = {
+                TableName: costDynamoTableName,
+                KeyConditionExpression: '#id = :user',
+                ExpressionAttributeNames: { '#id': 'id' },
+                ExpressionAttributeValues: { ':user': user },
+            };
+
+            if (lastEvaluatedKey) {
+                queryParams.ExclusiveStartKey = lastEvaluatedKey;
+            }
+
+            const queryResult = await dynamoDB.send(new QueryCommand(queryParams));
+            if (queryResult.Items && queryResult.Items.length > 0) {
+                items.push(...queryResult.Items);
+            }
+
+            lastEvaluatedKey = queryResult.LastEvaluatedKey || null;
+            pagesFetched++;
+        } while (lastEvaluatedKey && pagesFetched < MAX_USER_COST_QUERY_PAGES);
+
+        if (lastEvaluatedKey) {
+            logger.warn("Stopped paginating user cost rows at page cap", {
+                pagesFetched,
+                rowsRead: items.length
+            });
+        }
+
+        logger.info("User cost rows retrieved", {
+            rowsRead: items.length,
+            pagesFetched,
+            duration: Date.now() - startTime
+        });
+
+        // Aggregate the per-account rows into the totals the UI renders.
+        let dailyCost = 0;
+        let monthlyCost = 0;
+        const hourlyCost = new Array(24).fill(0);
+        const accounts = [];
+        let lastUpdated = null;
+
+        items.forEach(item => {
+            // Legacy rows predate record_type; anything explicitly tagged as
+            // something other than a cost row is not spend and is skipped.
+            if (item.record_type !== undefined && item.record_type !== 'cost') return;
+
+            const rowDailyCost = toNumber(item.dailyCost);
+            const rowMonthlyCost = toNumber(item.monthlyCost);
+            const rowHourlyCost = normalizeHourlyCost(item.hourlyCost);
+
+            dailyCost += rowDailyCost;
+            monthlyCost += rowMonthlyCost;
+            for (let hour = 0; hour < 24; hour++) {
+                hourlyCost[hour] += rowHourlyCost[hour];
+            }
+
+            // The cost table has no timestamp today (only the history table
+            // writes one), so this is normally null -- the UI already treats
+            // lastUpdated/timestamp as nullable.
+            const rowTimestamp = typeof item.timestamp === 'string' ? item.timestamp : null;
+            if (rowTimestamp && (!lastUpdated || rowTimestamp > lastUpdated)) {
+                lastUpdated = rowTimestamp;
+            }
+
+            accounts.push({
+                // SECURITY: accounting.js builds this sort key as
+                // `${coa}#${accessToken}` where accessToken is the RAW `amp-...`
+                // API key. Returning it verbatim would echo the caller's live
+                // API key secrets back in every cost response (and into any log
+                // or browser cache that captures the payload). Mask the key
+                // segment; the COA is preserved so the UI can still attribute
+                // cost per account.
+                accountInfo: redactAccountInfo(item.accountInfo),
+                dailyCost: rowDailyCost,
+                monthlyCost: rowMonthlyCost,
+                totalCost: rowDailyCost + rowMonthlyCost,
+                timestamp: rowTimestamp
+            });
+        });
+
+        accounts.sort((a, b) => b.totalCost - a.totalCost);
+
+        // monthlyCost holds the days already rolled up by billing/reset.js, so
+        // month-to-date is prior days + today. Matches listAllUserMtdCostsHandler.
+        const totalCost = dailyCost + monthlyCost;
+
+        const response = {
+            statusCode: 200,
+            body: JSON.stringify({
+                email: user,
+                dailyCost,
+                monthlyCost,
+                totalCost,
+                hourlyCost,
+                accounts,
+                lastUpdated,
+                timestamp: new Date().toISOString()
+            }),
+        };
+
+        logger.info("=== LIST USER MTD COSTS REQUEST COMPLETED ===", {
+            totalDuration: Date.now() - startTime,
+            accountsReturned: accounts.length,
+            hasData: accounts.length > 0,
+            requestedBy: user
+        });
+
+        return response;
+    } catch (error) {
+        logger.error("=== LIST USER MTD COSTS REQUEST FAILED ===", {
+            error: error.message,
+            stack: error.stack,
+            totalDuration: Date.now() - startTime,
+            requestedBy: requestUser
         });
         return {
             statusCode: 500,

@@ -177,10 +177,33 @@ functions:
   # Removing these deletes their methods from the shared gateway (qfgrhljoh0)
   # that this stack attaches to -- scoped to this stack's own resources.
   #
-  # NOTE: the UI's per-user cost display calls op /list-user-mtd-costs, which
-  # still has no backend route (so the display 404s -> $0). Implementing a safe
-  # token-derived handler returning the full UserMtdCosts shape is separate
-  # feature work, not part of this security removal.
+  # NOTE: the UI's per-user cost display calls op /list-user-mtd-costs. That
+  # route is now implemented below (list_user_mtd_costs) with a token-derived
+  # handler returning the full UserMtdCosts shape -- it takes NO user/email
+  # input, so it cannot be pointed at another user.
+
+  list_user_mtd_costs:
+    handler: billing/mtd.listUserMtdCostsHandler
+    memorySize: 128
+    events:
+      - http:
+          path: billing/list-user-mtd-costs
+          method: post
+          # Must stay authenticated: returns the caller's own spend, and the
+          # caller identity is read from the token this authorizer validates.
+          # See custom.jwtAuthorizerId note.
+          authorizer:
+            type: CUSTOM
+            authorizerId: ${self:custom.jwtAuthorizerId}
+          cors:
+            origin: ${self:custom.allowedOrigin}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   list_all_user_mtd_costs:
     handler: billing/mtd.listAllUserMtdCostsHandler
