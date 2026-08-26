@@ -25,6 +25,13 @@ custom:
   pythonRequirements:
     dockerizePip: true
     dockerImage: public.ecr.aws/sam/build-python3.11:latest
+    # Lambda defaults to x86_64. On Apple Silicon, Docker otherwise resolves
+    # the SAM image to arm64 and packages incompatible native wheels.
+    dockerRunCmdExtraArgs:
+      - --platform
+      - linux/amd64
+    useStaticCache: false
+    useDownloadCache: false
 
   cf-changesets:
     requireChangeSet: true
