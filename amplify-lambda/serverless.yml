@@ -55,7 +55,9 @@ custom:
     number: 5
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    # Production changes must be reviewed and explicitly executed in
+    # CloudFormation; Serverless should never update this stack directly.
+    requireChangeSet: true
 
   stageVars: ${file(../var/${self:provider.stage}-var.yml)}
   allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
@@ -196,7 +198,7 @@ functions:
     events:
       - http:
           path: state/conversation/upload
-          method: post
+          method: put
           cors:
             origin: ${self:custom.allowedOrigin}
             headers:
@@ -788,20 +790,124 @@ functions:
       - http:
           path: chat/convert
           method: post
-          cors:
-            origin: ${self:custom.allowedOrigin}
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-            allowCredentials: true
           authorizer:
             name: jwtAuthorizer
             resultTtlInSeconds: 300
     environment:
       TEMP_DIR: /tmp/
+
+  # Retained production workloads. These handlers and their event sources are
+  # still live; omitting them makes CloudFormation delete the functions, SQS
+  # mappings, S3 notifications, and weekly archive schedule.
+  create:
+    handler: state/create.create
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: state
+          method: post
+          cors: true
+
+  convert:
+    handler: converters/docconverter.handler
+    layers:
+      - ${self:provider.environment.PANDOC_LAYER}
+      - Ref: PythonRequirementsLambdaLayer
+    memorySize: 1024
+    timeout: 180
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_CONVERSION_INPUT_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+
+  handlePptxUpload:
+    handler: powerpoints/core.handle_pptx_upload
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_CONVERSION_OUTPUT_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+          rules:
+            - prefix: templates/
+            - suffix: .pptx
+
+  queue_document_for_rag:
+    handler: rag/core.queue_document_for_rag
+    layers:
+      - Ref: MarkitdownLambdaLayer
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_RAG_INPUT_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+    environment:
+      rag_process_document_queue_url:
+        Ref: RagDocumentIndexQueue
+
+  process_document_for_rag:
+    handler: rag/core.process_document_for_rag
+    layers:
+      - Ref: MarkitdownLambdaLayer
+    timeout: 300
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - RagDocumentIndexQueue
+              - Arn
+    environment:
+      FILE_UPLOAD_ENCRYPTION_PARAMETER: /${self:service}/${sls:stage}/s3/metadata/encryption
+      rag_process_document_queue_url:
+        Ref: RagDocumentIndexQueue
+
+  queue_document_for_chunking:
+    handler: rag/core.queue_document_for_rag_chunking
+    layers:
+      - Ref: MarkitdownLambdaLayer
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+    environment:
+      rag_chunk_document_queue_url:
+        Ref: RagChunkDocumentQueue
+
+  process_document_for_chunking:
+    handler: rag/core.chunk_document_for_rag
+    layers:
+      - Ref: MarkitdownLambdaLayer
+    timeout: 300
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - RagChunkDocumentQueue
+              - Arn
+    environment:
+      rag_chunk_document_queue_url:
+        Ref: RagChunkDocumentQueue
+
+  process_images_for_chat:
+    handler: images/core.process_images_for_chat
+    layers:
+      - Ref: MarkitdownLambdaLayer
+    events:
+      - s3:
+          bucket: ${self:provider.environment.S3_IMAGE_INPUT_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+
+  archive_chat_usage:
+    handler: utilities/amplify-lambda/utilities/chat_usage_archive.archive_items
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    events:
+      - schedule: cron(0 0 ? * SUN *)
       
 resources:
   Description: Amplify Managed State Service 
@@ -1219,6 +1325,24 @@ resources:
             - ServerSideEncryptionByDefault:
                 SSEAlgorithm: AES256
         # AccessControl: LogDeliveryWrite # Removed - incompatible with BucketOwnerEnforced
+
+    AccessLogsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: AccessLogsBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: S3ServerAccessLogsPolicy
+              Effect: Allow
+              Principal:
+                Service: logging.s3.amazonaws.com
+              Action: s3:PutObject
+              Resource: !Sub "arn:aws:s3:::${self:provider.environment.S3_ACCESS_LOGS_BUCKET_NAME}/*"
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: ${aws:accountId}
     
     StateBucket:
       Type: AWS::S3::Bucket
@@ -1536,6 +1660,26 @@ resources:
         VisibilityTimeout: 180
         MessageRetentionPeriod: 345600  # 4 days in seconds
         KmsDataKeyReusePeriodSeconds: 600
+
+    RagChunkDocumentQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: RagChunkDocumentQueue
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: s3.amazonaws.com
+              Action: sqs:SendMessage
+              Resource:
+                Fn::GetAtt:
+                  - RagChunkDocumentQueue
+                  - Arn
+              Condition:
+                ArnLike:
+                  aws:SourceArn: !Sub "arn:aws:s3:::${self:provider.environment.S3_FILE_TEXT_BUCKET_NAME}"
 
   Outputs:
     ApiGatewayId:
