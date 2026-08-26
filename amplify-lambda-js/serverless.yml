@@ -1,13 +1,10 @@
 service: amplify-${self:custom.stageVars.DEP_NAME}-amplify-js
 frameworkVersion: '3'
 
-# Plugins temporarily disabled (2026-05-07) to unblock prod deploy after
-# serverless-offline@13.9.0 (ESM) became incompatible with serverless@3.38
-# (CJS). CHANGE_SET_BOOLEAN is `false` in prod-var.yml so the change-set
-# safety plugin is already dormant; serverless-prune-plugin isn't actually
-# installed; serverless-offline is dev-only. None active at deploy time.
-# RESTORE after pinning serverless-offline to ^12.0.4 in package.json.
-plugins: []
+# Keep the incompatible development plugins disabled, but retain the
+# production change-set safety gate.
+plugins:
+  - serverless-cloudformation-changesets
 
 custom:
   serverless-offline:
@@ -31,7 +28,7 @@ custom:
   jwtAuthorizerId: prtc8p
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
 
   stages:
     - dev

@@ -63,8 +63,11 @@ functions:
 
 plugins:
   - serverless-python-requirements
+  - serverless-cloudformation-changesets
 
 custom:
+  cf-changesets:
+    requireChangeSet: true
   allowedOrigin: ${env:ALLOWED_ORIGIN, 'https://hfu-amplify.org'}
   pythonRequirements:
     dockerizePip: false

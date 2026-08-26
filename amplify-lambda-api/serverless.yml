@@ -18,7 +18,7 @@ custom:
     dockerizePip: true
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
     
   stageVars: ${file(../var/${self:provider.stage}-var.yml)}
   allowedOrigin: ${self:custom.stageVars.ALLOWED_ORIGIN, 'https://hfu-amplify.org'}

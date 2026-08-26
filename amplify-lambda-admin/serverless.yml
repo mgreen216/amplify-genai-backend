@@ -10,7 +10,7 @@ plugins:
   - serverless-offline
   - serverless-python-requirements
   - serverless-prune-plugin
-  # - serverless-cloudformation-changesets
+  - serverless-cloudformation-changesets
 
 custom:
   # Suffix of the S3 buckets owned by the amplify-lambda service. Must stay in
@@ -28,7 +28,7 @@ custom:
     - prod
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
     
 provider:
   name: aws
@@ -341,4 +341,3 @@ resources:
       Export:
         Name: AmplifyAdminTableStreamArn  
 
-   

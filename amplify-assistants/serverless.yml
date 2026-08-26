@@ -27,7 +27,7 @@ custom:
     dockerImage: public.ecr.aws/sam/build-python3.11:latest
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
   
   prune:
     automatic: true

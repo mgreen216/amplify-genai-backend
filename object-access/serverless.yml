@@ -13,7 +13,7 @@ plugins:
   - serverless-prune-plugin
   - serverless-deployment-bucket
   - serverless-iam-roles-per-function
-  # - serverless-cloudformation-changesets
+  - serverless-cloudformation-changesets
 
 custom:
   pythonRequirements:
@@ -21,7 +21,7 @@ custom:
     layer: true
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
 
   serverless-offline: 
     custom:

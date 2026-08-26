@@ -18,7 +18,7 @@ custom:
     dockerizePip: true
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
 
   stageVars: ${file(../var/${self:provider.stage}-var.yml)} 
   stages:
@@ -94,5 +94,4 @@ resources:
                 - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}"
                 - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.environment.API_KEYS_DYNAMODB_TABLE}/index/*"
                 - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.environment.ACCOUNTS_DYNAMO_TABLE}/index/*"
-
 

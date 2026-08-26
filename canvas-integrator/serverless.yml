@@ -4,8 +4,11 @@ frameworkVersion: '3'
 
 plugins:
   - serverless-python-requirements
+  - serverless-cloudformation-changesets
 
 custom:
+  cf-changesets:
+    requireChangeSet: true
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
   allowedOrigin: ${env:ALLOWED_ORIGIN, 'https://hfu-amplify.org'}

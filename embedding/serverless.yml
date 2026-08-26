@@ -22,7 +22,7 @@ custom:
 
 
   cf-changesets:
-    requireChangeSet: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
+    requireChangeSet: true
     
 
   prune:
@@ -471,4 +471,3 @@ resources:
         Engine: aurora-postgresql
         DBInstanceClass: db.serverless
         DBClusterIdentifier: !Ref RagPostgresDbCluster
-       
