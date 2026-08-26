@@ -54,6 +54,18 @@ provider:
       Fn::ImportValue: !Sub "${sls:stage}-RestApiId"
     restApiRootResourceId:
       Fn::ImportValue: !Sub "${sls:stage}-RestApiRootResourceId"
+    # The shared API already has an orphaned /assistant root from the earlier
+    # manual migration attempt. Reuse it so CloudFormation can manage the
+    # child routes without trying to create a duplicate root resource.
+    restApiResources:
+      /assistant: ne4m5b
+      /assistant/add_path: nbzx5s
+      /assistant/create: ifcm0f
+      /assistant/delete: fsxu8t
+      /assistant/list: mulkyj
+      /assistant/lookup: yo6xft
+      /assistant/rescan_websites: ycdhja
+      /assistant/share: 7pczz2
 
   environment:
     CHANGE_SET_BOOLEAN: ${self:custom.stageVars.CHANGE_SET_BOOLEAN}
