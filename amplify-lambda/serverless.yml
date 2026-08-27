@@ -42,11 +42,15 @@ custom:
   bucketSuffix: 1753366085924
 
   pythonRequirements:
-    dockerizePip: false
+    dockerizePip: true
+    dockerImage: public.ecr.aws/sam/build-python3.11:latest
+    dockerRunCmdExtraArgs:
+      - --platform
+      - linux/amd64
     layer: true
     pythonBin: python3.11
-    # uncomment in case of issues with pythonRequirement layers not uploading to aws
-    useStaticCache: false  # Uses a static path for the cache
+    # Native wheels must match Lambda rather than the Apple Silicon host.
+    useStaticCache: false
     useDownloadCache: false
 
   prune:
@@ -779,13 +783,11 @@ functions:
             resultTtlInSeconds: 300
       
   chat_convert:
-    handler: chat/convert.convert_endpoint
+    handler: converters/conversion_submit.convert_endpoint
     layers:
-      - ${self:custom.stageVars.PANDOC_LAMBDA_LAYER_ARN}
       - Ref: PythonRequirementsLambdaLayer
-      - Ref: MarkitdownLambdaLayer
     memorySize: 256
-    timeout: 120
+    timeout: 30
     events:
       - http:
           path: chat/convert
@@ -813,7 +815,6 @@ functions:
     handler: converters/docconverter.handler
     layers:
       - ${self:provider.environment.PANDOC_LAYER}
-      - Ref: PythonRequirementsLambdaLayer
     memorySize: 1024
     timeout: 180
     events:

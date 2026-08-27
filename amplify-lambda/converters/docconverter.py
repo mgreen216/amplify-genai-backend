@@ -13,8 +13,6 @@ import boto3
 from botocore.exceptions import NoCredentialsError
 import os
 
-from common.validate import validated
-
 # AWS S3 Client
 s3 = boto3.client('s3')
 
@@ -60,7 +58,6 @@ def parse_s3_key(s3_key):
         return None, None, None, None
 
 
-@validated("convert")
 def submit_conversion_job(event, context, user, name, data):
     print(f"User {user} submitted conversion job")
     input_bucket_name = os.environ['S3_CONVERSION_INPUT_BUCKET_NAME']
